@@ -1,42 +1,50 @@
-const mnistDataGeneration = async () => {
+const initCanvas = network => {
+    const canvas = document.getElementById('number');
+    const context = canvas.getContext("2d");
 
-    let train = [];
-    let test = [];
-    
-    const data = (await (await fetch('mnist_train.csv')).text()).split('\n');
+    const { width, height } = canvas;
 
-    data.pop();
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
+    context.lineWidth = 56;
 
-    data.map(data => {
-        data = data.split(',');
-        const output = Array(10).fill(0);
-        output[data.shift()] = 1
-        const input = data.map(x => (+x) / 255);
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
 
-        train.push({ output, input });
+    canvas.addEventListener('mousedown', e => {
+        [lastX, lastY] = [e.offsetX * width / 200, e.offsetY * height / 200];
+        isDrawing = true
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDrawing = false;
+        const pixels = context.getImageData(0, 0, width, height);
+        let inputs = [...Array(784)].fill(0);
+        console.log(pixels)
+        for (let pixelIndex = 3; pixelIndex < pixels.data.length; pixelIndex += 4) {
+            // const inputIndex = (pixelIndex - 3) / 4;
+            const inputIndex = Math.floor((pixelIndex - 3) / (4 * 784));
+            inputs[inputIndex] += pixels.data[pixelIndex];
+        }
+        document.getElementById('prediction').innerText = network.predict(inputs);
+        console.log(network.feedForward(inputs));
+    });
+    canvas.addEventListener('mouseout', () => isDrawing = false);
+
+    canvas.addEventListener('mousemove', e => {
+        if (!isDrawing) return;
+        context.beginPath();
+        context.moveTo(lastX, lastY);
+        console.log({e, canvas});
+        context.lineTo(e.offsetX * width / 200, e.offsetY * height / 200);
+        context.stroke();
+        context.closePath();
+        [lastX, lastY] = [e.offsetX * width / 200, e.offsetY * height / 200];
     })
+};
 
-    const testData = (await (await fetch('mnist_test.csv')).text()).split('\n');
-
-    testData.pop();
-
-    testData.map(data => {
-        data = data.split(',');
-        const output = Array(10).fill(0);
-        output[data.shift()] = 1
-        const input = data.map(x => (+x) / 255);
-
-        test.push({input, output});
-    })
-
-    const network = (await (await fetch('weights.json')).json());
-
-    return {
-        train,
-        test,
-        network
-    }
-}
+const fetchNetwork = async () => (await (await fetch('weights.json')).json());
 
 const Network = (layers, suppliedNetwork) => {
 
@@ -67,8 +75,8 @@ const Network = (layers, suppliedNetwork) => {
             const newInputs = []
             for (let neuronIndex = 0; neuronIndex < layerSize; ++neuronIndex) { // neurons
                 const neuron = layer[neuronIndex];
-                let neuronTotal = 0;
-                // let neuronTotal = neuron.bias;
+                // let neuronTotal = 0;
+                let neuronTotal = neuron.bias;
                 for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) { // weights
                     neuronTotal += neuron.weights[weightIndex] * activations[weightIndex];
                 }
@@ -82,7 +90,6 @@ const Network = (layers, suppliedNetwork) => {
     }
 
     const backPropogation = (inputs, expectedOutput, learningRate) => {
-
         for (let layerIndex = network.length - 1; layerIndex >= 0; --layerIndex) {
             const layer = network[layerIndex];
             if (layerIndex !== network.length - 1) {
@@ -133,7 +140,7 @@ const Network = (layers, suppliedNetwork) => {
         }
     }
 
-    const predict = data => {
+    const predictArray = data => {
         return data.map(data => {
             const output = feedForward(data.input);
             const actual = output.indexOf(Math.max(...output)) + 1;
@@ -144,6 +151,11 @@ const Network = (layers, suppliedNetwork) => {
                 ideal
             }
         }).reduce((acc, data) => data.actual === data.ideal ? acc +  1 : acc, 0) / data.length
+    }
+
+    const predict = inputs => {
+        const outputs = feedForward(inputs);
+        return outputs.indexOf(Math.max(...outputs));
     }
 
     const train = (data, epochs, batches, learningRate) => {
@@ -162,45 +174,16 @@ const Network = (layers, suppliedNetwork) => {
     }
 
     return {
-        predict, 
+        predict,
+        predictArray,
         feedForward,
-        train, 
-        network
+        train
     }
 }
 
-// const accuracies = []
+const network = fetchNetwork();
 
-// for (let epochs = 100; epochs <= 500; epochs += 100) {
-//     for (let batches = 1; batches <= 250; batches *= 1.5) {
-//         for (let learningRate = 0.05; learningRate <= 1; learningRate += 0.05) {
-//             let totalAccuracy = 0;
-//             for (let runNumber = 0; runNumber < 4; runNumber += 1) {
-//                 const network = Network([7, 5, 3]);
-//                 network.train(data, epochs, batches, learningRate);
-//                 const accuracy = network.predict(data);
-//                 totalAccuracy += accuracy
-//                 console.log(`Epochs: ${epochs} | Batches: ${batches} | learningRate: ${learningRate} | Run-number: ${runNumber} | Prediction ${accuracy}`);
-//             }
-//             totalAccuracy /= 4;
-//             accuracies.push({ totalAccuracy, epochs, batches, learningRate });
-//         }
-//     }
-// }
-
-// console.log('Accuracies: ', accuracies.sort((a, b) => a.accuracy - b.accuracy));
-
-// ? 0.93 E200B130L015 E400B1L015 E400B3L02 E400B38L02 E400B86L015 E500B1L015 E500B8L015 E500B11L015 E500B17L01 E500B17L015 E500B38L02 E500B87L025 E600B5L015 E600B38L01
-
-const mnistData = mnistDataGeneration();
-
-mnistData.then(value => {
-    console.log('Yes !!!');
-    const epochs = 2;
-    const batches = 1;
-    const learningRate = 0.4;
-    const network = Network([28 * 28, 14 * 14, 7 * 7, 10], value.network);
-    network.train(value.train, epochs, batches, learningRate);
-    console.log(network.predict(value.test));
-    console.log(network);
+network.then(network => {
+    network = Network([28 * 28, 14 * 14, 7 * 7, 10], network);
+    initCanvas(network);
 })
