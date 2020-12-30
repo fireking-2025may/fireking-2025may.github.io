@@ -155,6 +155,7 @@ const Network = (layers, suppliedNetwork) => {
 
     const predict = inputs => {
         const outputs = feedForward(inputs);
+        console.log('Prediction: index.js: 158', { outputs, prediction: outputs.indexOf(Math.max(...outputs)) });
         return outputs.indexOf(Math.max(...outputs));
     }
 
