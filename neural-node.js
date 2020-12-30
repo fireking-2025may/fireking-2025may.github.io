@@ -2,7 +2,7 @@ var fs = require('fs');
 
 const mnistDataGeneration = async () => {
 
-    const network = require('./weights.json');
+    const network = require('./data/weights.json');
 
     let train = [];
     let test = [];
@@ -159,7 +159,7 @@ const Network = (layers, suppliedNetwork) => {
                 }
             }
         }
-        fs.writeFileSync('weights.json', JSON.stringify(network));
+        fs.writeFileSync('data/weights.json', JSON.stringify(network));
     }
 
     return {
@@ -176,7 +176,7 @@ mnistData.then(value => {
     const epochs = 100;
     const batches = 100;
     const learningRate = 0.4;
-    const network = Network([28 * 28, 14 * 14, 7 * 7, 10], value.network);
+    const network = Network([28 * 28, 14 * 14, 7 * 7, 10]);
     network.train(value.train, epochs, batches, learningRate);
     console.log(network.predict(value.test));
 })
