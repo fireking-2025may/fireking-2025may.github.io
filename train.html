@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link type='text/css' rel='stylesheet' href='index.css' />
+</head>
+<body>
+    <canvas width='784' height='784' id='number'></canvas>
+    <div id='prediction'>
+        <span id='predictionNumber'></span>
+        <input type='number' id='actual' />
+        <button type='button' id='submit'>Submit Sample</button>
+        <button type='button' id='predict'>Predict</button>
+    </div>
+    <script type='text/javascript'>
+    const initCanvas = () => {
+        const inputs = [...Array(28 * 28)].fill(0);
+        const canvas = document.getElementById('number');
+        const context = canvas.getContext("2d");
+
+        const { width, height } = canvas;
+
+        context.lineJoin = 'round';
+        context.lineCap = 'round';
+        context.lineWidth = 56;
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        canvas.addEventListener('mousedown', e => {
+            [lastX, lastY] = [e.offsetX * width / 200, e.offsetY * height / 200];
+            isDrawing = true
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+            const pixels = context.getImageData(0, 0, width, height);
+            console.log(pixels)
+            for (let pixelIndex = 3; pixelIndex < pixels.data.length; pixelIndex += 4) {
+                const inputIndex = Math.floor((pixelIndex - 3) / (4 * inputs.length));
+                inputs[inputIndex] += pixels.data[pixelIndex];
+            }
+            for (let i = 0; i < inputs.length; ++i) {
+                inputs[i] /= (255 * 28 * 28)
+            }
+        });
+
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+
+        canvas.addEventListener('mousemove', e => {
+            if (!isDrawing) return;
+            context.beginPath();
+            context.moveTo(lastX, lastY);
+            console.log({e, canvas});
+            context.lineTo(e.offsetX * width / 200, e.offsetY * height / 200);
+            context.stroke();
+            context.closePath();
+            [lastX, lastY] = [e.offsetX * width / 200, e.offsetY * height / 200];
+        })
+
+        return inputs;
+    };
+
+    const fetchNetwork = async () => (await (await fetch('weights.json')).json());
+
+    const Network = (layers, suppliedNetwork) => {
+
+        const network = suppliedNetwork || layers.slice(1).map((layer, layerIndex) => { // layers
+            return [...Array(layer)].map(() => { // neuron
+                return {
+                    weights: [...Array(layers[layerIndex])].map(() => Math.random() * (1 - -1) - 1), // weights
+                    newWeights: [...Array(layers[layerIndex])].map(() => 0), // newWeights
+                    weightConstants: [...Array(layers[layerIndex])].map(() => ({ dirivative: 0, cost: 0 })),
+                    bias: Math.random() * (1 - -1) - 1,
+                    newBias: 0,
+                    output: 0, 
+                    delta: 1
+                }
+            })
+        })
+
+        const sigmoid = value => 1 / (Math.exp(-value) + 1);
+
+        const sigmoidDirivative = output => output * (1 - output);
+
+        const feedForward = inputs => {
+            let activations = inputs;
+            const networkSize = network.length;
+            for (let layerIndex = 0; layerIndex < networkSize; ++layerIndex) { // layers
+                const layer = network[layerIndex];
+                const layerSize = layer.length;
+                const newInputs = []
+                for (let neuronIndex = 0; neuronIndex < layerSize; ++neuronIndex) { // neurons
+                    const neuron = layer[neuronIndex];
+                    // let neuronTotal = 0;
+                    let neuronTotal = neuron.bias;
+                    for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) { // weights
+                        neuronTotal += neuron.weights[weightIndex] * activations[weightIndex];
+                    }
+                    const activation = sigmoid(neuronTotal);
+                    neuron.output = activation;
+                    newInputs.push(activation);
+                }
+                activations = newInputs;
+            }
+            return activations;
+        }
+
+        const backPropogation = (inputs, expectedOutput, learningRate) => {
+            for (let layerIndex = network.length - 1; layerIndex >= 0; --layerIndex) {
+                const layer = network[layerIndex];
+                if (layerIndex !== network.length - 1) {
+                    for (let currentNeuronIndex = 0; currentNeuronIndex < layer.length; ++currentNeuronIndex) {
+                        const neuron = layer[currentNeuronIndex];
+                        let cost = 0;
+                        for (let nextNeuronIndex = 0; nextNeuronIndex < network[layerIndex + 1].length; ++nextNeuronIndex) {
+                            const nextNeuron = network[layerIndex + 1][nextNeuronIndex];
+                            cost += nextNeuron.weightConstants[currentNeuronIndex].dirivative * nextNeuron.weightConstants[currentNeuronIndex].cost * nextNeuron.weights[currentNeuronIndex]
+                        }
+                        const dirivative = sigmoidDirivative(layer[currentNeuronIndex].output);
+                        for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) {
+                            let previousOutput;
+                            if (layerIndex - 1 < 0) previousOutput = inputs[weightIndex]
+                            else previousOutput = network[layerIndex - 1][weightIndex].output;
+                            neuron.newWeights[weightIndex] -= (learningRate * previousOutput * dirivative * cost);
+                            neuron.weightConstants[weightIndex].dirivative = dirivative;
+                            neuron.weightConstants[weightIndex].cost = cost;
+                        }
+                        neuron.newBias -= (learningRate * dirivative * cost);
+                    }
+                } else {
+                    for (let currentNeuronIndex = 0; currentNeuronIndex < layer.length; ++currentNeuronIndex) {
+                        const neuron = layer[currentNeuronIndex];
+                        const dirivative = sigmoidDirivative(neuron.output)
+                        const cost = neuron.output - expectedOutput[currentNeuronIndex];
+                        for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) {
+                            const previousOutput = network[layerIndex - 1][weightIndex].output;
+                            neuron.newWeights[weightIndex] -= (learningRate * previousOutput * dirivative * cost);
+                            neuron.weightConstants[weightIndex].dirivative = dirivative;
+                            neuron.weightConstants[weightIndex].cost = cost;
+                        }
+                        neuron.newBias -= (learningRate * dirivative * cost)
+                    }
+                }
+            }
+        }
+
+        const updateWeights = () => {
+            for (let layerIndex = 0; layerIndex < network.length; ++layerIndex) { // layers
+                for (let neuronIndex = 0; neuronIndex < network[layerIndex].length; ++neuronIndex) {
+                    const neuron = network[layerIndex][neuronIndex];
+                    for (let inputIndex = 0; inputIndex < neuron.weights.length; ++inputIndex) {
+                        neuron.weights[inputIndex] = neuron.newWeights[inputIndex]
+                    }
+                    neuron.bias = neuron.newBias
+                }
+            }
+        }
+
+        const predictArray = data => {
+            return data.map(data => {
+                const output = feedForward(data.input);
+                const actual = output.indexOf(Math.max(...output)) + 1;
+                const ideal = data.output.indexOf(1) + 1;
+                actual !== ideal && console.log({ ideal: data.output, actual: output });
+                return {
+                    actual,
+                    ideal
+                }
+            }).reduce((acc, data) => data.actual === data.ideal ? acc +  1 : acc, 0) / data.length
+        }
+
+        const predict = inputs => {
+            const outputs = feedForward(inputs);
+            return outputs.indexOf(Math.max(...outputs));
+        }
+
+        const train = async (data, epochs, batches, learningRate) => {
+            for (let i = epochs; i > 0; --i) { // epoch
+                for (let j = 0; j < batches + 2; ++j) { // batch
+                    const batch = data.splice(Math.floor(Math.random() * (data.length - (data.length / batches))), (data.length / batches));
+                    for (let dataIndex = 0; dataIndex < batch.length; ++dataIndex) {
+                        const data = batch[dataIndex];
+                        feedForward(data.input);
+                        backPropogation(data.input, data.output, learningRate);
+                        updateWeights(data.input);
+                        console.log(`Epoch: ${i} | Batch: ${j}`);
+                    }
+                }
+            }
+        }
+
+        return {
+            predict,
+            predictArray,
+            feedForward,
+            train
+        }
+    }
+
+    const network = fetchNetwork();
+
+    network.then(network => {
+
+        const trainingArray = [];
+
+        network = Network([28 * 28, 14 * 14, 7 * 7, 10], network);
+        const inputs = initCanvas();
+
+        const submitButton = document.getElementById('submit');
+        
+        submitButton.addEventListener('click', e => {
+            const actualValue = document.getElementById('actual').value;
+
+            const outputs = [...Array(10)].fill(0);
+
+            outputs[actualValue] = 1;
+
+            trainingArray.push({
+                inputs: [...inputs], 
+                outputs
+            })
+            console.log(trainingArray);
+
+            document.getElementById('number').getContext('2d').clearRect(0, 0, 784, 784);
+        })
+
+        document.getElementById('predict').addEventListener('click', () => {
+            document.getElementById('predictionNumber').innerText = network.predict(inputs);
+        })
+
+        const recursiveTrain = async () => {
+            if (trainingArray.length > 10){
+                console.log('Training!!!', trainingArray)
+                await network.train(trainingArray);
+            }
+            setTimeout(recursiveTrain, 0);
+        };
+        setTimeout(recursiveTrain, 0);
+    });
+
+    </script>
+</body>
+</html>
