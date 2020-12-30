@@ -69,8 +69,7 @@ const Network = (layers, suppliedNetwork) => {
             const newInputs = []
             for (let neuronIndex = 0; neuronIndex < layerSize; ++neuronIndex) { // neurons
                 const neuron = layer[neuronIndex];
-                let neuronTotal = 0;
-                // let neuronTotal = neuron.bias;
+                let neuronTotal = neuron.bias;
                 for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) { // weights
                     neuronTotal += neuron.weights[weightIndex] * activations[weightIndex];
                 }
@@ -160,6 +159,7 @@ const Network = (layers, suppliedNetwork) => {
                 }
             }
         }
+        fs.writeFileSync('weights.json', JSON.stringify(network));
     }
 
     return {
@@ -173,11 +173,10 @@ const Network = (layers, suppliedNetwork) => {
 const mnistData = mnistDataGeneration();
 
 mnistData.then(value => {
-    const epochs = 2;
-    const batches = 1;
+    const epochs = 100;
+    const batches = 100;
     const learningRate = 0.4;
     const network = Network([28 * 28, 14 * 14, 7 * 7, 10], value.network);
     network.train(value.train, epochs, batches, learningRate);
     console.log(network.predict(value.test));
-    console.log(network);
 })
