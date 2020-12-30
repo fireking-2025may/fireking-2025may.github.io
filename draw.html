@@ -1,0 +1,51 @@
+<html>
+    <script type="text/javascript">
+    const init = () => {
+        const canvas = document.getElementById('can');
+        const context = canvas.getContext("2d");
+        const { width, height } = canvas;
+
+        context.lineJoin = 'round';
+        context.lineCap = 'round';
+
+        context.lineWidth = 20;
+
+        let isDrawing = false;
+
+        let lastX = 0;
+        let lastY = 0;
+
+        const draw = e => {
+            if (!isDrawing) return;
+            context.beginPath();
+            context.moveTo(lastX, lastY);
+            context.lineTo(e.offsetX, e.offsetY);
+            context.stroke();
+            context.closePath();
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        canvas.addEventListener('mousedown', e => {
+            console.log('MouseDown');
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+            isDrawing = true
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            console.log('MouseUp');
+            isDrawing = false
+        });
+
+        canvas.addEventListener('mouseout', () => {
+            console.log('MouseOut');
+            isDrawing = false
+        });
+
+        canvas.addEventListener('mousemove', draw)
+
+    };
+    </script>
+    <body onload="init()">
+        <canvas id="can" width="784" height="784" style="position:absolute;top:10%;left:10%;border:2px solid;"></canvas>
+    </body>
+    </html>
