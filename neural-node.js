@@ -2,59 +2,74 @@ var fs = require('fs');
 
 const mnistDataGeneration = async () => {
 
-    const network = require('./data/weights.json');
-
-    let train = [];
-    let test = [];
-    
     const data = fs.readFileSync('mnist_train.csv', 'utf8').split('\n');
 
     data.pop();
 
-    data.map(data => {
+    const train = data.map(data => {
         data = data.split(',');
         const output = Array(10).fill(0);
         output[data.shift()] = 1
         const input = data.map(x => (+x) / 255);
-
-        train.push({ output, input });
+        return {
+            input,
+            output
+        };
     })
 
     const testData = fs.readFileSync('mnist_test.csv', 'utf8').split('\n');
-
     testData.pop();
-
-    testData.map(data => {
+    const test = testData.map(data => {
         data = data.split(',');
         const output = Array(10).fill(0);
         output[data.shift()] = 1
         const input = data.map(x => (+x) / 255);
-
-        test.push({input, output});
+        return {
+            input,
+            output
+        };
     })
 
     return {
         train,
-        test,
-        network
+        test
     }
 }
 
 const Network = (layers, suppliedNetwork) => {
 
-    const network = suppliedNetwork || layers.slice(1).map((layer, layerIndex) => { // layers
-        return [...Array(layer)].map(() => { // neuron
-            return {
-                weights: [...Array(layers[layerIndex])].map(() => Math.random() * (1 - -1) - 1), // weights
-                newWeights: [...Array(layers[layerIndex])].map(() => 0), // newWeights
-                weightConstants: [...Array(layers[layerIndex])].map(() => ({ dirivative: 0, cost: 0 })),
-                bias: Math.random() * (1 - -1) - 1,
-                newBias: 0,
-                output: 0, 
-                delta: 1
-            }
-        })
-    })
+    const network = suppliedNetwork || layers.slice(1).map((layer, layerIndex) => [...Array(layer)].map(() => ({ // layers // neurons
+            weights: [...Array(layers[layerIndex])].map(() => Math.random() * (1 - -1) - 1), // weights
+            newWeights: [...Array(layers[layerIndex])].map(() => 0), // newWeights
+            weightConstants: [...Array(layers[layerIndex])].map(() => ({ dirivative: 0, cost: 0 })),
+            bias: Math.random() * (1 - -1) - 1,
+            newBias: 0,
+            output: 0, 
+            delta: 1
+        }))
+    )
+
+    const shuffle = array => {
+        let m = array.length, t, i;
+        while (m) {
+            i = Math.floor(Math.random() * m--);
+            t = array[m];
+            array[m] = array[i];
+            array[i] = t;
+        }
+    }
+
+    const getRandomSubArray = (array, newLength) => {
+        const newArray = new Array(newLength);
+        let length = array.length;
+        const taken = new Array(length);
+        while (newLength--) {
+            const i = Math.floor(Math.random() * length);
+            newArray[i] = array[i in taken ? taken[i] : i];
+            taken[i] = --length in taken ? taken[length] : length;
+        }
+        return newArray;
+    }
 
     const sigmoid = value => 1 / (Math.exp(-value) + 1);
 
@@ -82,8 +97,7 @@ const Network = (layers, suppliedNetwork) => {
         return activations;
     }
 
-    const backPropogation = (inputs, expectedOutput, learningRate) => {
-
+    const singleBackPropogation = (inputs, expectedOutput, learningRate) => {
         for (let layerIndex = network.length - 1; layerIndex >= 0; --layerIndex) {
             const layer = network[layerIndex];
             if (layerIndex !== network.length - 1) {
@@ -122,14 +136,69 @@ const Network = (layers, suppliedNetwork) => {
         }
     }
 
-    const updateWeights = () => {
-        for (let layerIndex = 0; layerIndex < network.length; ++layerIndex) { // layers
-            for (let neuronIndex = 0; neuronIndex < network[layerIndex].length; ++neuronIndex) {
-                const neuron = network[layerIndex][neuronIndex];
-                for (let inputIndex = 0; inputIndex < neuron.weights.length; ++inputIndex) {
-                    neuron.weights[inputIndex] = neuron.newWeights[inputIndex]
+    const backPropogation = (inputs, expectedOutput, learningRate) => {
+        for (let layerIndex = network.length - 1; layerIndex >= 0; --layerIndex) {
+            const layer = network[layerIndex];
+            const layerLength = layer.length;
+            if (layerIndex !== network.length - 1) {
+                for (let currentNeuronIndex = 0; currentNeuronIndex < layerLength; ++currentNeuronIndex) {
+                    const neuron = layer[currentNeuronIndex];
+                    let cost = 0;
+                    for (let nextNeuronIndex = 0; nextNeuronIndex < network[layerIndex + 1].length; ++nextNeuronIndex) {
+                        const nextNeuron = network[layerIndex + 1][nextNeuronIndex];
+                        const nextNeuronWeightConstants = nextNeuron.weightConstants[currentNeuronIndex]
+                        cost += nextNeuronWeightConstants.dirivative * nextNeuronWeightConstants.cost * nextNeuron.weights[currentNeuronIndex]
+                    }
+                    const dirivative = sigmoidDirivative(neuron.output);
+                    for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) {
+                        let previousOutput;
+                        if (layerIndex - 1 < 0) previousOutput = inputs[weightIndex]
+                        else previousOutput = network[layerIndex - 1][weightIndex].output;
+                        neuron.newWeights[weightIndex] += (neuron.newWeights[weightIndex] - (learningRate * previousOutput * dirivative * cost));
+                        neuron.weightConstants[weightIndex].dirivative = dirivative;
+                        neuron.weightConstants[weightIndex].cost = cost;
+                    }
+                    neuron.newBias += (neuron.newBias - (learningRate * dirivative * cost));
                 }
-                neuron.bias = neuron.newBias
+            } else {
+                for (let currentNeuronIndex = 0; currentNeuronIndex < layer.length; ++currentNeuronIndex) {
+                    const neuron = layer[currentNeuronIndex];
+                    const dirivative = sigmoidDirivative(neuron.output)
+                    const cost = neuron.output - expectedOutput[currentNeuronIndex];
+                    for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) {
+                        const previousOutput = network[layerIndex - 1][weightIndex].output;
+                        neuron.newWeights[weightIndex] += neuron.newWeights[weightIndex] - (learningRate * previousOutput * dirivative * cost);
+                        neuron.weightConstants[weightIndex].dirivative = dirivative;
+                        neuron.weightConstants[weightIndex].cost = cost;
+                    }
+                    neuron.newBias += (neuron.newBias - (learningRate * dirivative * cost));
+                }
+            }
+        }
+    }
+
+    const updateSingleWeights = () => {
+        for (let layerIndex = 0; layerIndex < network.length; ++layerIndex) { // layers
+            for (let neuronIndex = 0; neuronIndex < network[layerIndex].length; ++neuronIndex) { // neurons
+                const neuron = network[layerIndex][neuronIndex];
+                for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) { // weights
+                    neuron.weights[weightIndex] = neuron.newWeights[weightIndex];
+                }
+                neuron.bias = neuron.newBias;
+            }
+        }
+    }
+
+    const updateWeights = batchLength => {
+        for (let layerIndex = 0; layerIndex < network.length; ++layerIndex) { // layers
+            for (let neuronIndex = 0; neuronIndex < network[layerIndex].length; ++neuronIndex) { // neurons
+                const neuron = network[layerIndex][neuronIndex];
+                for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) { // weights
+                    neuron.weights[weightIndex] = neuron.newWeights[weightIndex] / batchLength
+                    neuron.newWeights[weightIndex] = 0;
+                }
+                neuron.bias = neuron.newBias / batchLength
+                neuron.newBias = 0;
             }
         }
     }
@@ -146,17 +215,20 @@ const Network = (layers, suppliedNetwork) => {
         }).reduce((acc, data) => data.actual === data.ideal ? acc +  1 : acc, 0) / data.length
     }
 
-    const train = (data, epochs, batches, learningRate) => {
-        for (let i = epochs; i > 0; --i) { // epoch
-            for (let j = 0; j < batches + 2; ++j) { // batch
-                const batch = data.splice(Math.floor(Math.random() * (data.length - (data.length / batches))), (data.length / batches));
-                for (let dataIndex = 0; dataIndex < batch.length; ++dataIndex) {
+    const train = (data, epochs, batchLength, learningRate, testData) => {
+        const batches = data.length / batchLength
+        for (let i = 0; i <= epochs; ++i) { // epochs
+            shuffle(data);
+            for (let j = 0; j < batches; ++j) { // batches
+                const randomIndex = Math.floor(Math.random() * (data.length - batchLength - 2));
+                const batch = data.slice(randomIndex, randomIndex + batchLength);
+                for (let dataIndex = 0; dataIndex < batchLength; ++dataIndex) {
                     const data = batch[dataIndex];
                     feedForward(data.input);
-                    backPropogation(data.input, data.output, learningRate);
-                    updateWeights(data.input);
-                    console.log(`Epoch: ${i} | Batch: ${j}`);
+                    singleBackPropogation(data.input, data.output, learningRate);
+                    updateSingleWeights();
                 }
+                console.log(`Epoch: ${i} | Batch: ${j} | Accuracy: ${predict(testData)}`);
             }
         }
         fs.writeFileSync('data/weights.json', JSON.stringify(network));
@@ -170,13 +242,11 @@ const Network = (layers, suppliedNetwork) => {
     }
 }
 
-const mnistData = mnistDataGeneration();
-
-mnistData.then(value => {
-    const epochs = 100;
-    const batches = 100;
-    const learningRate = 0.4;
-    const network = Network([28 * 28, 14 * 14, 7 * 7, 10]);
-    network.train(value.train, epochs, batches, learningRate);
-    console.log(network.predict(value.test));
+mnistDataGeneration().then(value => {
+    const epochs = 2;
+    const batchLength = 10;
+    const learningRate = 0.5;
+    const network = Network([28 * 28, 100, 10]);
+    network.train(value.train, epochs, batchLength, learningRate, value.test);
+    console.log('Final Accuracy: ', network.predict(value.test));
 })

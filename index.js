@@ -6,7 +6,7 @@ const initCanvas = network => {
 
     context.lineJoin = 'round';
     context.lineCap = 'round';
-    context.lineWidth = 56;
+    context.lineWidth = 2.5;
 
     let isDrawing = false;
     let lastX = 0;
@@ -21,14 +21,12 @@ const initCanvas = network => {
         isDrawing = false;
         const pixels = context.getImageData(0, 0, width, height);
         let inputs = [...Array(784)].fill(0);
-        console.log(pixels)
         for (let pixelIndex = 3; pixelIndex < pixels.data.length; pixelIndex += 4) {
             // const inputIndex = (pixelIndex - 3) / 4;
-            const inputIndex = Math.floor((pixelIndex - 3) / (4 * 784));
+            const inputIndex = Math.floor((pixelIndex - 3) / (4));
             inputs[inputIndex] += pixels.data[pixelIndex];
         }
         document.getElementById('prediction').innerText = network.predict(inputs);
-        console.log(network.feedForward(inputs));
     });
     canvas.addEventListener('mouseout', () => isDrawing = false);
 
@@ -36,7 +34,6 @@ const initCanvas = network => {
         if (!isDrawing) return;
         context.beginPath();
         context.moveTo(lastX, lastY);
-        console.log({e, canvas});
         context.lineTo(e.offsetX * width / 200, e.offsetY * height / 200);
         context.stroke();
         context.closePath();
@@ -145,7 +142,6 @@ const Network = (layers, suppliedNetwork) => {
             const output = feedForward(data.input);
             const actual = output.indexOf(Math.max(...output)) + 1;
             const ideal = data.output.indexOf(1) + 1;
-            actual !== ideal && console.log({ ideal: data.output, actual: output });
             return {
                 actual,
                 ideal
@@ -155,7 +151,7 @@ const Network = (layers, suppliedNetwork) => {
 
     const predict = inputs => {
         const outputs = feedForward(inputs);
-        console.log('Prediction: index.js: 158', { outputs, prediction: outputs.indexOf(Math.max(...outputs)) });
+        console.log(outputs);
         return outputs.indexOf(Math.max(...outputs));
     }
 
@@ -168,7 +164,6 @@ const Network = (layers, suppliedNetwork) => {
                     feedForward(data.input);
                     backPropogation(data.input, data.output, learningRate);
                     updateWeights(data.input);
-                    console.log(`Epoch: ${i} | Batch: ${j}`);
                 }
             }
         }
@@ -181,10 +176,8 @@ const Network = (layers, suppliedNetwork) => {
         train
     }
 }
-
-const network = fetchNetwork();
-
-network.then(network => {
+    
+fetchNetwork().then(network => {
     network = Network([28 * 28, 14 * 14, 7 * 7, 10], network);
     initCanvas(network);
 })
