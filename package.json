@@ -1,0 +1,22 @@
+{
+  "name": "number-predictor-epq",
+  "version": "1.0.0",
+  "description": "My new attempt at finalising my number predictor for my epq project",
+  "main": "neural-node.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fireking-design/fireking-design.github.io.git"
+  },
+  "author": "Brook Smith",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/fireking-design/fireking-design.github.io/issues"
+  },
+  "homepage": "https://github.com/fireking-design/fireking-design.github.io#readme",
+  "dependencies": {
+    "mathjs": "^9.3.0"
+  }
+}
