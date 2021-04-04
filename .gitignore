@@ -108,3 +108,4 @@ mnist_train.csv
 mnist_train.json
 mnist_test.csv
 mnist_test.json
+mnist_validate.json
