@@ -51,8 +51,39 @@ const Network = layers => {
         return newData;
     }
 
+    const train = ({ trainingData, testingData, validatingData }, { epochs, miniBatchSize, learningRate, lambda }, { writeFrequency, save, showProgress }) => {
+
+        const diagnostics = [];
+        const trainingDataLength = trainingData.length;
+
+        console.log('Training');
+        for (let epochIndex = 0; epochIndex < epochs; ++epochIndex) {
+            trainingData = shuffle(trainingData);
+            for (let batchIndex = 0; batchIndex < trainingDataLength; batchIndex += miniBatchSize) {
+                if(!(batchIndex % writeFrequency)) console.log(`Batch index ${batchIndex}`);
+                const miniBatch = trainingData.slice(batchIndex, batchIndex + miniBatchSize);
+                updateMiniBatch({ miniBatch, learningRate, lambda, trainingDataLength });
+            }
+            if (testingData) {
+                console.log(`Epoch ${epochIndex} ${predict(testingData).accuracy} / ${testingData.length}`);
+            } else {
+                console.log(`Epoch ${epochIndex}`);
+            }
+            if (showProgress) {
+                const trainingPrediction = predict(trainingData);
+                const trainingAcc = (trainingPrediction.accuracy / trainingData.length) * 100;
+                const trainingCost = trainingPrediction.cost.reduce((acc, cost) => acc + cost, 0);
+                const testingPrediction = predict(testingData);
+                const testingAcc = (testingPrediction.accuracy / testingData.length) * 100;
+                const testingCost = testingPrediction.cost.reduce((acc, cost) => acc + cost, 0);
+                const validatingPrediction = predict(validatingData);
+                const validatingAcc = (validatingPrediction.accuracy / validatingData.length) * 100;
+                const validatingCost = validatingPrediction.cost.reduce((acc, cost) => acc + cost, 0);
+                diagnostics.push({ epochIndex, trainingAcc, trainingCost, testingAcc, testingCost, validatingAcc, validatingCost });
             }
         }
+        if(save) writeFileSync('data/weights.json', JSON.stringify({ weights, biases }));
+        if(showProgress) writeFileSync('data/diagnostics.json', JSON.stringify(diagnostics));
     }
 
     return {
