@@ -109,3 +109,7 @@ mnist_train.json
 mnist_test.csv
 mnist_test.json
 mnist_validate.json
+data/diagnostics-with-graph-without-regularisation.xlsx
+data/diagnostics-with-graph.xlsx
+data/diagnostics.csv
+data/diagnostics.json
