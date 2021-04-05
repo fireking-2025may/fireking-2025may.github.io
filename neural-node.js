@@ -31,9 +31,24 @@ const Network = layers => {
     }
 
     const predict = data => {
+        const newData = data.map(data => {
+            const output = feedForward(data.input).valueOf();
+            const actual = output.indexOf(Math.max(...output));
+            const ideal = data.output.indexOf(1);
+            const cost = math.subtract(output, data.output).map(Math.abs);
             return {
                 actual,
+                ideal, 
+                cost
             }
+        }).reduce((acc, data) => ({
+            accuracy: data.actual === data.ideal ? acc.accuracy + 1 : acc.accuracy, 
+            cost: math.add(acc.cost, data.cost)
+        }), { accuracy: 0, cost: math.zeros([data[0].output.length]) })
+
+        newData.cost = math.divide(newData.cost, data.length);
+
+        return newData;
     }
 
             }
