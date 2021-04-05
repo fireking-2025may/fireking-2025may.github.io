@@ -1,4 +1,7 @@
+const { getMnistData } = require('./mnist-data-generation');
+const { writeFileSync } = require('fs');
 
+const math = require('mathjs');
 
 
 
