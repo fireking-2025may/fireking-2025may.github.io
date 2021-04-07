@@ -30,6 +30,7 @@ const Network = layers => {
     const updateMiniBatch = ({ miniBatch, learningRate, lambda, trainingDataLength }) => {
         let newWeights = [...Array(layers.length - 1)].map((_, i) => math.zeros([layers[i + 1], layers[i]]));
         let newBiases = [...Array(layers.length - 1)].map(((_, i) => math.zeros([layers[i + 1]])));
+        for (let dataIndex = 0; dataIndex < miniBatch.length; ++dataIndex) {
         }
 
         weights = [...Array(layers.length - 1)].map((_, i) => math.subtract(math.dotMultiply(weights[i], 1 - (learningRate * lambda / trainingDataLength)), math.dotMultiply(learningRate / miniBatch.length, newWeights[i])));
