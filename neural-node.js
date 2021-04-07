@@ -21,10 +21,13 @@ const Network = layers => {
         }
     }
 
+    const backPropogation = (inputs, ideal) => {
 
         }
 
         }
+
+        return { deltaWeights, deltaBiases };
     }
 
     const updateMiniBatch = ({ miniBatch, learningRate, lambda, trainingDataLength }) => {
