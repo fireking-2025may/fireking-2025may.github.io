@@ -42,6 +42,7 @@ const Network = layers => {
             activations.push(newActivation);
         }
 
+        let deltaVector = math.dotMultiply(math.subtract(math.flatten(activations[activations.length - 1]), ideal), math.flatten(sigmoidDirivative(activations[activations.length - 1])));
         }
 
         return { deltaWeights, deltaBiases };
