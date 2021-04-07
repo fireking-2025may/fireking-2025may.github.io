@@ -27,6 +27,7 @@ const Network = layers => {
         }
     }
 
+    const updateMiniBatch = ({ miniBatch, learningRate, lambda, trainingDataLength }) => {
         }
     }
 
