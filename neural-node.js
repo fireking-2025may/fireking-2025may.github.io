@@ -23,6 +23,14 @@ const Network = layers => {
 
     const backPropogation = (inputs, ideal) => {
 
+        let deltaWeights = [...Array(layers.length - 1)].map((_, i) => math.zeros([layers[i + 1], layers[i]]));
+        let deltaBiases = [...Array(layers.length - 1)].map(((_, i) => math.zeros([layers[i + 1]])));
+
+        inputs = math.matrix(inputs);
+
+        let activation = inputs;
+        let activations = [inputs];
+        let zs = [];
         }
 
         }
