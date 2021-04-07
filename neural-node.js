@@ -31,6 +31,8 @@ const Network = layers => {
         let newWeights = [...Array(layers.length - 1)].map((_, i) => math.zeros([layers[i + 1], layers[i]]));
         let newBiases = [...Array(layers.length - 1)].map(((_, i) => math.zeros([layers[i + 1]])));
         for (let dataIndex = 0; dataIndex < miniBatch.length; ++dataIndex) {
+            const data = miniBatch[dataIndex];
+            const { deltaWeights, deltaBiases } = backPropogation(data.input, data.output);
         }
 
         weights = [...Array(layers.length - 1)].map((_, i) => math.subtract(math.dotMultiply(weights[i], 1 - (learningRate * lambda / trainingDataLength)), math.dotMultiply(learningRate / miniBatch.length, newWeights[i])));
