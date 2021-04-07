@@ -31,6 +31,15 @@ const Network = layers => {
         let activation = inputs;
         let activations = [inputs];
         let zs = [];
+
+        const networkSize = layers.length - 1;
+        for (let layerIndex = 0; layerIndex < networkSize; ++layerIndex) { // layers
+            const z = math.add(math.multiply(weights[layerIndex], activation), biases[layerIndex]);
+            zs.push(z);
+            activation = sigmoid(z);
+            let newActivation = math.matrix(activation);
+            math.reshape(newActivation, [newActivation.size()[0], 1]);
+            activations.push(newActivation);
         }
 
         }
