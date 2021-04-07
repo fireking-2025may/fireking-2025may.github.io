@@ -31,6 +31,9 @@ const Network = layers => {
         let newWeights = [...Array(layers.length - 1)].map((_, i) => math.zeros([layers[i + 1], layers[i]]));
         let newBiases = [...Array(layers.length - 1)].map(((_, i) => math.zeros([layers[i + 1]])));
         }
+
+        weights = [...Array(layers.length - 1)].map((_, i) => math.subtract(math.dotMultiply(weights[i], 1 - (learningRate * lambda / trainingDataLength)), math.dotMultiply(learningRate / miniBatch.length, newWeights[i])));
+        biases = [...Array(layers.length - 1)].map((_, i) =>  math.subtract(biases[i], math.dotMultiply(learningRate / miniBatch.length, newBiases[i])));
     }
 
     const predict = data => {
