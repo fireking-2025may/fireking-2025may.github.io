@@ -3,6 +3,8 @@ const { writeFileSync } = require('fs');
 const math = require('mathjs');
 
 const Network = layers => {
+    let weights = [...Array(layers.length - 1)].map((_, i) => math.random([layers[i + 1], layers[i]], -0.1, 0.1));
+    let biases = [...Array(layers.length - 1)].map(((_, i) => math.random([layers[i + 1]], -0.1, 0.1)));
 
     const shuffle = array => {
         let m = array.length, t, i;
