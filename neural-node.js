@@ -51,6 +51,7 @@ const Network = layers => {
             deltaVector = math.dotMultiply(math.multiply(math.transpose(weights[layerIndex + 1]), deltaVector), sigmoidDirivative(activations[layerIndex + 1]))
             deltaVector = math.reshape(deltaVector, [deltaVector.size()[0], 1])
             deltaBiases[layerIndex] = deltaVector;
+            deltaWeights[layerIndex] = math.multiply(deltaVector, math.transpose(math.reshape(math.matrix(activations[layerIndex]), [activations[layerIndex].size()[0], 1])));
         }
 
         return { deltaWeights, deltaBiases };
