@@ -46,6 +46,8 @@ const Network = layers => {
         math.reshape(deltaVector, [deltaVector.size()[0], 1])
         deltaBiases[deltaBiases.length - 1] = deltaVector
         deltaWeights[deltaWeights.length - 1] = math.multiply(deltaVector, math.transpose(activations.length - 2 ? activations[activations.length - 2] : math.reshape(activations[activations.length - 2], [activations[activations.length - 2].size()[0], 1]))); //math.reshape(inputs, [inputs.size()[0], 1])
+
+        for (let layerIndex = deltaBiases.length - 2; layerIndex >= 0; --layerIndex) {
         }
 
         return { deltaWeights, deltaBiases };
