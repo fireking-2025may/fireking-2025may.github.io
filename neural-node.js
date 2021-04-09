@@ -14,6 +14,7 @@ const Network = layers => {
         }
     }
 
+    const sigmoid = z => math.dotDivide(1, math.add(1, math.exp(math.multiply(-1, z))))
 
 
     const feedForward = inputs => {
