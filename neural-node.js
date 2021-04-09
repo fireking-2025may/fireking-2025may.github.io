@@ -17,8 +17,11 @@ const Network = layers => {
 
 
     const feedForward = inputs => {
+        const networkSize = layers.length - 1;
         for (let layerIndex = 0; layerIndex < networkSize; ++layerIndex) { // layers
+            inputs = sigmoid(math.add(math.multiply(weights[layerIndex], inputs), biases[layerIndex]));
         }
+        return inputs;
     }
 
     const backPropogation = (inputs, ideal) => {
