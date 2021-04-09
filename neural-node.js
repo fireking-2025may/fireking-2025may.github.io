@@ -14,6 +14,7 @@ const Network = layers => {
             array[m] = array[i];
             array[i] = t;
         }
+        return array;
     }
 
     const sigmoid = z => math.dotDivide(1, math.add(1, math.exp(math.multiply(-1, z))))
