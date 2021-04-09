@@ -16,6 +16,7 @@ const Network = layers => {
 
     const sigmoid = z => math.dotDivide(1, math.add(1, math.exp(math.multiply(-1, z))))
 
+    const sigmoidDirivative = activation => math.dotMultiply(activation, math.subtract(1, activation));
 
     const feedForward = inputs => {
         const networkSize = layers.length - 1;
