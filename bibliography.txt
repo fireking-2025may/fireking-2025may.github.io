@@ -1,0 +1,3 @@
+Data download - https://machinelearningmastery.com/standard-machine-learning-datasets/
+Simple datasets - https://machinelearningmastery.com/standard-machine-learning-datasets/
+Neural networks and deep learning - http://neuralnetworksanddeeplearning.com/
