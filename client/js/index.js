@@ -41,7 +41,7 @@ const initCanvas = network => {
     })
 };
 
-const fetchNetwork = async () => (await (await fetch('/data/weights.json')).json());
+const fetchNetwork = async () => (await (await fetch('/client/data/weights.json')).json());
 
 const Network = (layers, suppliedNetwork) => {
 
