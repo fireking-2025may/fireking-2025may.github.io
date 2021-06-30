@@ -50,7 +50,7 @@ const Network = (layers, suppliedNetwork) => {
             return {
                 weights: [...Array(layers[layerIndex])].map(() => Math.random() * (1 - -1) - 1), // weights
                 newWeights: [...Array(layers[layerIndex])].map(() => 0), // newWeights
-                weightConstants: [...Array(layers[layerIndex])].map(() => ({ dirivative: 0, cost: 0 })),
+                weightConstants: [...Array(layers[layerIndex])].map(() => ({ derivative: 0, cost: 0 })),
                 bias: Math.random() * (1 - -1) - 1,
                 newBias: 0,
                 output: 0, 
@@ -61,7 +61,7 @@ const Network = (layers, suppliedNetwork) => {
 
     const sigmoid = value => 1 / (Math.exp(-value) + 1);
 
-    const sigmoidDirivative = output => output * (1 - output);
+    const sigmoidDerivative = output => output * (1 - output);
 
     const feedForward = inputs => {
         let activations = inputs;
@@ -86,7 +86,7 @@ const Network = (layers, suppliedNetwork) => {
         return activations;
     }
 
-    const backPropogation = (inputs, expectedOutput, learningRate) => {
+    const backPropagation = (inputs, expectedOutput, learningRate) => {
         for (let layerIndex = network.length - 1; layerIndex >= 0; --layerIndex) {
             const layer = network[layerIndex];
             if (layerIndex !== network.length - 1) {
@@ -95,31 +95,31 @@ const Network = (layers, suppliedNetwork) => {
                     let cost = 0;
                     for (let nextNeuronIndex = 0; nextNeuronIndex < network[layerIndex + 1].length; ++nextNeuronIndex) {
                         const nextNeuron = network[layerIndex + 1][nextNeuronIndex];
-                        cost += nextNeuron.weightConstants[currentNeuronIndex].dirivative * nextNeuron.weightConstants[currentNeuronIndex].cost * nextNeuron.weights[currentNeuronIndex]
+                        cost += nextNeuron.weightConstants[currentNeuronIndex].derivative * nextNeuron.weightConstants[currentNeuronIndex].cost * nextNeuron.weights[currentNeuronIndex]
                     }
-                    const dirivative = sigmoidDirivative(layer[currentNeuronIndex].output);
+                    const derivative = sigmoidDerivative(layer[currentNeuronIndex].output);
                     for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) {
                         let previousOutput;
                         if (layerIndex - 1 < 0) previousOutput = inputs[weightIndex]
                         else previousOutput = network[layerIndex - 1][weightIndex].output;
-                        neuron.newWeights[weightIndex] -= (learningRate * previousOutput * dirivative * cost);
-                        neuron.weightConstants[weightIndex].dirivative = dirivative;
+                        neuron.newWeights[weightIndex] -= (learningRate * previousOutput * derivative * cost);
+                        neuron.weightConstants[weightIndex].derivative = derivative;
                         neuron.weightConstants[weightIndex].cost = cost;
                     }
-                    neuron.newBias -= (learningRate * dirivative * cost);
+                    neuron.newBias -= (learningRate * derivative * cost);
                 }
             } else {
                 for (let currentNeuronIndex = 0; currentNeuronIndex < layer.length; ++currentNeuronIndex) {
                     const neuron = layer[currentNeuronIndex];
-                    const dirivative = sigmoidDirivative(neuron.output)
+                    const derivative = sigmoidDerivative(neuron.output)
                     const cost = neuron.output - expectedOutput[currentNeuronIndex];
                     for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) {
                         const previousOutput = network[layerIndex - 1][weightIndex].output;
-                        neuron.newWeights[weightIndex] -= (learningRate * previousOutput * dirivative * cost);
-                        neuron.weightConstants[weightIndex].dirivative = dirivative;
+                        neuron.newWeights[weightIndex] -= (learningRate * previousOutput * derivative * cost);
+                        neuron.weightConstants[weightIndex].derivative = derivative;
                         neuron.weightConstants[weightIndex].cost = cost;
                     }
-                    neuron.newBias -= (learningRate * dirivative * cost)
+                    neuron.newBias -= (learningRate * derivative * cost)
                 }
             }
         }
@@ -162,7 +162,7 @@ const Network = (layers, suppliedNetwork) => {
                 for (let dataIndex = 0; dataIndex < batch.length; ++dataIndex) {
                     const data = batch[dataIndex];
                     feedForward(data.input);
-                    backPropogation(data.input, data.output, learningRate);
+                    backPropagation(data.input, data.output, learningRate);
                     updateWeights(data.input);
                 }
             }
