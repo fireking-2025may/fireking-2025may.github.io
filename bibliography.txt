@@ -1,3 +1,4 @@
 Data download - https://machinelearningmastery.com/standard-machine-learning-datasets/
 Simple datasets - https://machinelearningmastery.com/standard-machine-learning-datasets/
 Neural networks and deep learning - http://neuralnetworksanddeeplearning.com/
+How to go back on a commit when you can't push it to the remote - https://stackoverflow.com/questions/1611215/remove-a-git-commit-which-has-not-been-pushed 
