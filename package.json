@@ -1,7 +1,7 @@
 {
   "name": "number-predictor-epq",
   "version": "1.0.0",
-  "description": "My new attempt at finalising my number predictor for my epq project",
+  "description": "My new attempt at finalizing my number predictor for my epq project",
   "main": "neural-node.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
