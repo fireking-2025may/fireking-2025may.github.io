@@ -22,7 +22,6 @@ const initCanvas = network => {
         const pixels = context.getImageData(0, 0, width, height);
         let inputs = [...Array(784)].fill(0);
         for (let pixelIndex = 3; pixelIndex < pixels.data.length; pixelIndex += 4) {
-            // const inputIndex = (pixelIndex - 3) / 4;
             const inputIndex = Math.floor((pixelIndex - 3) / (4));
             inputs[inputIndex] += pixels.data[pixelIndex];
         }
@@ -43,7 +42,7 @@ const initCanvas = network => {
 
 const fetchNetwork = async () => (await (await fetch('/client/data/weights.json')).json());
 
-const Network = (layers, suppliedNetwork) => {
+const Network = (suppliedNetwork, layers) => {
 
     const network = suppliedNetwork || layers.slice(1).map((layer, layerIndex) => { // layers
         return [...Array(layer)].map(() => { // neuron
@@ -72,7 +71,6 @@ const Network = (layers, suppliedNetwork) => {
             const newInputs = []
             for (let neuronIndex = 0; neuronIndex < layerSize; ++neuronIndex) { // neurons
                 const neuron = layer[neuronIndex];
-                // let neuronTotal = 0;
                 let neuronTotal = neuron.bias;
                 for (let weightIndex = 0; weightIndex < neuron.weights.length; ++weightIndex) { // weights
                     neuronTotal += neuron.weights[weightIndex] * activations[weightIndex];
@@ -178,6 +176,6 @@ const Network = (layers, suppliedNetwork) => {
 }
     
 fetchNetwork().then(network => {
-    network = Network([28 * 28, 14 * 14, 7 * 7, 10], network);
+    network = Network(network, [28 * 28, 14 * 14, 7 * 7, 10]);
     initCanvas(network);
 })
