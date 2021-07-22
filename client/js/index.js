@@ -45,6 +45,8 @@ const initCanvas = ({ predict }) => {
 
 const Network2 = (coefficients) => {
 
+    const sigmoid = value => 1 / (Math.exp(-value) + 1);
+
     const feedForward = inputs => {
         let activations = inputs;
         const networkSize = coefficients.length;
@@ -112,7 +114,7 @@ const Network2 = (coefficients) => {
 //         })
 //     })
 
-//     const sigmoid = value => 1 / (Math.exp(-value) + 1);
+    // const sigmoid = value => 1 / (Math.exp(-value) + 1);
 
 //     const sigmoidDerivative = output => output * (1 - output);
 
