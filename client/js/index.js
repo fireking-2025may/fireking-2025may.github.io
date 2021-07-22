@@ -1,8 +1,9 @@
 const initCanvas = ({ predict }) => {
+    const predict = document.getElementById('predict');
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext("2d");
 
-    const { width, height } = canvas;
+    const { canvasWidth: width, canvasHeight: height } = canvas;
 
     context.lineJoin = 'round';
     context.lineCap = 'round';
@@ -13,34 +14,34 @@ const initCanvas = ({ predict }) => {
     let lastY = 0;
 
     canvas.addEventListener('mousedown', e => {
-        [lastX, lastY] = [e.offsetX * width / 200, e.offsetY * height / 200];
+        [lastX, lastY] = [e.offsetX * canvasWidth / 200, e.offsetY * canvasHeight / 200];
         isDrawing = true
     });
 
-    canvas.addEventListener('mouseup', () => {
-        isDrawing = false;
-        const pixels = context.getImageData(0, 0, width, height);
+    canvas.addEventListener('mousemove', e => {
+        if (!isDrawing) return;
+        context.beginPath();
+        context.moveTo(lastX, lastY);
+        context.lineTo(e.offsetX * canvasWidth / 200, e.offsetY * canvasHeight / 200);
+        context.stroke();
+        context.closePath();
+        [lastX, lastY] = [e.offsetX * canvasWidth / 200, e.offsetY * canvasHeight / 200];
+    })
+
+    canvas.addEventListener('mouseup', () => isDrawing = false);
+
+    canvas.addEventListener('mouseout', () => isDrawing = false);
+
+    predict.addEventListener('click', () => {
+        const pixels = context.getImageData(0, 0, canvasWidth, canvasHeight);
         let inputs = [...Array(784)].fill(0);
         for (let pixelIndex = 3; pixelIndex < pixels.data.length; pixelIndex += 4) {
             const inputIndex = Math.floor((pixelIndex - 3) / (4));
             inputs[inputIndex] += pixels.data[pixelIndex];
         }
         document.getElementById('prediction').innerText = predict(inputs);
-    });
-
-    canvas.addEventListener('mouseout', () => isDrawing = false);
-
-    canvas.addEventListener('mousemove', e => {
-        if (!isDrawing) return;
-        context.beginPath();
-        context.moveTo(lastX, lastY);
-        context.lineTo(e.offsetX * width / 200, e.offsetY * height / 200);
-        context.stroke();
-        context.closePath();
-        [lastX, lastY] = [e.offsetX * width / 200, e.offsetY * height / 200];
     })
 
-    
 };
 
 const Network2 = (coefficients) => {
