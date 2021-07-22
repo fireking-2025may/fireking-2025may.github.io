@@ -10,10 +10,15 @@ const initCanvas = ({ predict }) => {
     context.lineWidth = 2.5;
 
     let isDrawing = false;
+    let clearCanvas = false;
     let lastX = 0;
     let lastY = 0;
 
     canvas.addEventListener('mousedown', e => {
+        if (clearCanvas) {
+            context.fillRect(0, 0, canvasWidth, canvasHeight)
+            clearCanvas = false;
+        };
         [lastX, lastY] = [e.offsetX * canvasWidth / 200, e.offsetY * canvasHeight / 200];
         isDrawing = true
     });
@@ -40,6 +45,7 @@ const initCanvas = ({ predict }) => {
             inputs[inputIndex] += pixels.data[pixelIndex];
         }
         document.getElementById('prediction').innerText = predict(inputs);
+        clearCanvas = true;
     })
 
 };
