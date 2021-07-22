@@ -1,5 +1,5 @@
 const initCanvas = ({ predict }) => {
-    const predict = document.getElementById('predict');
+    const predictButton = document.getElementById('predict');
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext("2d");
 
@@ -32,7 +32,7 @@ const initCanvas = ({ predict }) => {
 
     canvas.addEventListener('mouseout', () => isDrawing = false);
 
-    predict.addEventListener('click', () => {
+    predictButton.addEventListener('click', () => {
         const pixels = context.getImageData(0, 0, canvasWidth, canvasHeight);
         let inputs = [...Array(784)].fill(0);
         for (let pixelIndex = 3; pixelIndex < pixels.data.length; pixelIndex += 4) {
