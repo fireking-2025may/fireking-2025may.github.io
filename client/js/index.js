@@ -3,7 +3,7 @@ const initCanvas = ({ predict }) => {
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext("2d");
 
-    const { canvasWidth: width, canvasHeight: height } = canvas;
+    const { width: canvasWidth, height: canvasHeight } = canvas;
 
     context.lineJoin = 'round';
     context.lineCap = 'round';
