@@ -71,7 +71,7 @@ const Network2 = (coefficients) => {
 
     const predict = inputs => {
         const outputs = feedForward(inputs);
-        console.log(outputs);
+        console.log(outputs.map(output => Math.round(output * 1000) / 1000));
         return outputs.indexOf(Math.max(...outputs));
     }
 
