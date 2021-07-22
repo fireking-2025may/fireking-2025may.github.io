@@ -30,8 +30,8 @@
     font-size: x-large;
 }
 
-#prediction:not(:empty) {
-
+#prediction:empty {
+    height: 0.25vh;
 }
 
 #predict {
