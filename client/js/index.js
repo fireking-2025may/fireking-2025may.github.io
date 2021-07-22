@@ -16,6 +16,7 @@ const initCanvas = ({ predict }) => {
 
     canvas.addEventListener('mousedown', e => {
         if (clearCanvas) {
+            context.fillStyle = '#fff';
             context.fillRect(0, 0, canvasWidth, canvasHeight)
             clearCanvas = false;
         };
