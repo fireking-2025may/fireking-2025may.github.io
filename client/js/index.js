@@ -16,8 +16,8 @@ const initCanvas = ({ predict }) => {
 
     canvas.addEventListener('mousedown', e => {
         if (clearCanvas) {
-            context.fillStyle = '#fff';
-            context.fillRect(0, 0, canvasWidth, canvasHeight)
+            // context.fillStyle = '#fff';
+            context.clearRect(0, 0, canvasWidth, canvasHeight)
             clearCanvas = false;
         };
         [lastX, lastY] = [e.offsetX * canvasWidth / 200, e.offsetY * canvasHeight / 200];
@@ -45,6 +45,7 @@ const initCanvas = ({ predict }) => {
             const inputIndex = Math.floor((pixelIndex - 3) / (4));
             inputs[inputIndex] += pixels.data[pixelIndex];
         }
+        console.log(inputs);
         document.getElementById('prediction').innerText = predict(inputs);
         clearCanvas = true;
     })
