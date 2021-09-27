@@ -1,5 +1,6 @@
 const initCanvas = ({ predict }) => {
     const predictButton = document.getElementById('predict');
+    const deleteButton = document.getElementById('delete');
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext("2d");
 
@@ -49,6 +50,8 @@ const initCanvas = ({ predict }) => {
         document.getElementById('prediction').innerText = predict(inputs);
         clearCanvas = true;
     })
+
+    deleteButton.addEventListener('click', () => context.clearRect(0, 0, canvasWidth, canvasHeight))
 
 };
 
