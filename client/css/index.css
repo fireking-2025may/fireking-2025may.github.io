@@ -42,12 +42,14 @@
     height: 0.25vh;
 }
 
-#predict {
-    display: block;
-    box-sizing: content-box;
+#btns {
+    width: fit-content;
+    margin: 0.5vh auto 0 auto;
+}
+
+.btn {
     width: 100px;
     height: 30px;
-    margin: 0.5vh auto 0 auto;
     padding: 0;
     border: 2px solid black;
 }
