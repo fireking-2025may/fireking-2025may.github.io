@@ -3,8 +3,8 @@
 }
 
 #title {
-    width: 80vw;
-    height: 5vh;
+    /* width: 80vw;
+    height: 5vh; */
     margin: 20vh auto 0.5vh auto;
     text-align: center;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -20,9 +20,9 @@
 }
 
 #prediction {
-    display: block;
+    /* display: block;
     width: 200px;
-    height: 2.5vh;
+    height: 2.5vh; */
     margin: 0.5vh auto 0 auto;
     line-height: 2.5vh;
     text-align: center;
