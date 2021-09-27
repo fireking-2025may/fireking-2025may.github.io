@@ -1,9 +1,9 @@
 #body {
     box-sizing: border-box;
-    width: 80vw;
+    width: 65vw;
     height: 80vh;
     margin: 10vh auto 10vh auto;
-    padding: 10vh 0;
+    padding: 5vh 0;
     background-color: lightgrey;
 }
 
