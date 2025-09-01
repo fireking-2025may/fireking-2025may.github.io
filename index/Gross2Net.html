@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gross2Net Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    table {
+      border-collapse: collapse;
+      text-align: center;
+      margin: 20px auto;
+    }
+    th, td {
+      border: 1px solid #333;
+      padding: 8px 12px;
+    }
+    tfoot td {
+      font-weight: bold;
+      background-color: #f0f0f0;
+    }
+    .output {
+      background-color: #e8f4e5;
+    }
+    .controls {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+      text-align: right;
+    }
+    input.shareholder {
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="controls">
+      <label for="cgtRate">CGT tax rate (CGTPer %): </label>
+      <input type="number" id="cgtRate" value="20" min="0" max="100" />
+      <button id="addRowBtn">Add Shareholder</button>
+    </div>
+    <table id="grossTable">
+      <thead>
+        <tr>
+          <th>Shareholder</th>
+          <th>Personal funds required (PersFunds)</th>
+          <th>CGT Base cost (Cost)</th>
+          <th>Gross Shareholding Investment required</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Total</td>
+          <td id="sumFunds" class="output">£0</td>
+          <td id="sumCost" class="output">£0</td>
+          <td id="sumGross" class="output">£0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <script>
+    function parseCurrency(value) {
+      if (!value) return 0;
+      return parseFloat(value.replace(/[^0-9.-]/g, '')) || 0;
+    }
+
+    function formatCurrency(num) {
+      return '£' + Math.round(num).toLocaleString('en-GB');
+    }
+
+    function addRow() {
+      const tbody = document.querySelector('#grossTable tbody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="shareholder" /></td>
+        <td><input type="text" class="currency pers" value="£0" /></td>
+        <td><input type="text" class="currency cost" value="£0" /></td>
+        <td class="output">£0</td>
+      `;
+      tbody.appendChild(tr);
+      attachEvents(tr);
+      updateCalculations();
+    }
+
+    function attachEvents(row) {
+      const inputs = row.querySelectorAll('input.currency');
+      inputs.forEach(input => {
+        input.addEventListener('focus', () => {
+          input.value = parseCurrency(input.value);
+        });
+        input.addEventListener('blur', () => {
+          input.value = formatCurrency(parseCurrency(input.value));
+          updateCalculations();
+        });
+      });
+    }
+
+    function updateCalculations() {
+      const cgtRate = parseFloat(document.getElementById('cgtRate').value) / 100;
+      const rows = document.querySelectorAll('#grossTable tbody tr');
+      let sumFunds = 0, sumCost = 0, sumGross = 0;
+
+      rows.forEach(row => {
+        const persInput = row.querySelector('.pers');
+        const costInput = row.querySelector('.cost');
+        const grossCell = row.querySelector('.output');
+
+        const pers = parseCurrency(persInput.value);
+        const cost = parseCurrency(costInput.value);
+        const gross = Math.max(0, (pers - cgtRate * (3000 + cost)) / (1 - cgtRate));
+
+        grossCell.textContent = formatCurrency(gross);
+
+        sumFunds += pers;
+        sumCost += cost;
+        sumGross += gross;
+      });
+
+      document.getElementById('sumFunds').textContent = formatCurrency(sumFunds);
+      document.getElementById('sumCost').textContent = formatCurrency(sumCost);
+      document.getElementById('sumGross').textContent = formatCurrency(sumGross);
+    }
+
+    document.getElementById('addRowBtn').addEventListener('click', addRow);
+    document.getElementById('cgtRate').addEventListener('input', updateCalculations);
+    
+    // Initialize with one row
+    addRow();
+  </script>
+</body>
+</html>
