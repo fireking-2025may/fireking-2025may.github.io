@@ -7,11 +7,8 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
       margin: 0;
+      padding-bottom: 60px; /* space for nav bar */
     }
     table {
       border-collapse: collapse;
@@ -41,10 +38,36 @@
     input.shareholder {
       text-align: left;
     }
+    .tab {
+      display: none;
+      padding: 20px;
+    }
+    .tab.active {
+      display: block;
+    }
+    .nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+      background-color: #ddd;
+      padding: 10px 0;
+    }
+    .nav-bar button {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <div>
+  <div id="grossTab" class="tab active">
+    <h2>Gross2Net</h2>
     <div class="controls">
       <label for="cgtRate">CGT tax rate (CGTPer %): </label>
       <input type="number" id="cgtRate" value="20" min="0" max="100" />
@@ -70,6 +93,13 @@
         </tr>
       </tfoot>
     </table>
+  </div>
+  <div id="emiTab" class="tab">
+    <h2>EMI pool calculation</h2>
+  </div>
+  <div class="nav-bar">
+    <button data-target="grossTab">Gross2Net</button>
+    <button data-target="emiTab">EMI pool calculation</button>
   </div>
   <script>
     function parseCurrency(value) {
@@ -136,7 +166,14 @@
 
     document.getElementById('addRowBtn').addEventListener('click', addRow);
     document.getElementById('cgtRate').addEventListener('input', updateCalculations);
-    
+
+    document.querySelectorAll('.nav-bar button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(btn.dataset.target).classList.add('active');
+      });
+    });
+
     // Initialize with one row
     addRow();
   </script>
