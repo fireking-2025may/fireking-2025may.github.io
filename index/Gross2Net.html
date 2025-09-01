@@ -96,6 +96,22 @@
   </div>
   <div id="emiTab" class="tab">
     <h2>EMI pool calculation</h2>
+    <table>
+      <tbody>
+        <tr>
+          <td>Exit value</td>
+          <td><input type="text" id="exitValue" class="currency" value="£0" /></td>
+        </tr>
+        <tr>
+          <td>Employee pool</td>
+          <td id="employeePool" class="output">£0</td>
+        </tr>
+        <tr>
+          <td>Family Shareholder Pool</td>
+          <td id="familyPool" class="output">£0</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
   <div class="nav-bar">
     <button data-target="grossTab">Gross2Net</button>
@@ -164,8 +180,33 @@
       document.getElementById('sumGross').textContent = formatCurrency(sumGross);
     }
 
+    function updateEmi() {
+      const exitVal = parseCurrency(document.getElementById('exitValue').value);
+      let rate = 0;
+      if (exitVal >= 30000000 && exitVal < 35000000) rate = 0.005;
+      else if (exitVal >= 35000000 && exitVal < 37500000) rate = 0.0075;
+      else if (exitVal >= 37500000 && exitVal < 40000000) rate = 0.015;
+      else if (exitVal >= 40000000) rate = 0.02;
+
+      let employee = exitVal * rate;
+      if (employee > 1000000) employee = 1000000;
+      const family = exitVal - employee;
+
+      document.getElementById('employeePool').textContent = formatCurrency(employee);
+      document.getElementById('familyPool').textContent = formatCurrency(family);
+    }
+
     document.getElementById('addRowBtn').addEventListener('click', addRow);
     document.getElementById('cgtRate').addEventListener('input', updateCalculations);
+
+    const exitInput = document.getElementById('exitValue');
+    exitInput.addEventListener('focus', () => {
+      exitInput.value = parseCurrency(exitInput.value);
+    });
+    exitInput.addEventListener('blur', () => {
+      exitInput.value = formatCurrency(parseCurrency(exitInput.value));
+      updateEmi();
+    });
 
     document.querySelectorAll('.nav-bar button').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -176,6 +217,7 @@
 
     // Initialize with one row
     addRow();
+    updateEmi();
   </script>
 </body>
 </html>
