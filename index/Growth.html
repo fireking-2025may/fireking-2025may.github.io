@@ -225,9 +225,15 @@
         .attr('y',y(threshold)+ (y(0)-y(threshold))/2)
         .text(d=>`${d.s.name} (${d.s.ordinary}%)`)
         .each(function(d){
-          const widthRect = x(d.x+d.width)-x(d.x);
-          if(d.s.ordinary <10) d3.select(this).classed('vertical',true);
-          if(widthRect < 20) d3.select(this).style('font-size','8px');
+          const rectWidth = x(d.x + d.width) - x(d.x);
+          const textSel = d3.select(this);
+          const textWidth = this.getBBox().width;
+          if (textWidth > rectWidth) {
+            textSel.classed('vertical', true);
+            const fontSize = parseFloat(textSel.style('font-size'));
+            const scale = rectWidth / textWidth;
+            textSel.style('font-size', (fontSize * scale) + 'px');
+          }
         });
 
       // labels growth
@@ -237,9 +243,15 @@
         .attr('y',y(maxVal)+ (y(threshold)-y(maxVal))/2)
         .text(d=>`${d.s.name} (${d.s.growth}%)`)
         .each(function(d){
-          const widthRect = x(d.x+d.width)-x(d.x);
-          if(d.s.growth <10) d3.select(this).classed('vertical',true);
-          if(widthRect < 20) d3.select(this).style('font-size','8px');
+          const rectWidth = x(d.x + d.width) - x(d.x);
+          const textSel = d3.select(this);
+          const textWidth = this.getBBox().width;
+          if (textWidth > rectWidth) {
+            textSel.classed('vertical', true);
+            const fontSize = parseFloat(textSel.style('font-size'));
+            const scale = rectWidth / textWidth;
+            textSel.style('font-size', (fontSize * scale) + 'px');
+          }
         });
     }
 
