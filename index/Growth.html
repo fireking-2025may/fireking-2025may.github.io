@@ -139,9 +139,9 @@
         .range([d3.rgb('#a7c4f2'), d3.rgb('#4472C4')]);
       shareholders.forEach(s=>{
         if(s.ordinary>=5){
-          s.color = redScale(reds.indexOf(s)).formatHex();
+          s.color = d3.color(redScale(reds.indexOf(s))).formatHex();
         } else {
-          s.color = blueScale(blues.indexOf(s)).formatHex();
+          s.color = d3.color(blueScale(blues.indexOf(s))).formatHex();
         }
       });
     }
