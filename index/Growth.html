@@ -79,6 +79,7 @@
       <tbody></tbody>
     </table>
     <button id="addShareholder">Add Shareholder</button>
+    <div id="warning" style="color:red;display:none;"></div>
     <div>
       <label>Growth threshold (£M): <input type="number" id="threshold" value="5" min="0" step="0.1"></label><br>
       <label>Max value (£M): <input type="number" id="maxValue" value="10" min="0" step="0.1"></label>
@@ -126,6 +127,22 @@
                       <td><button data-idx="${idx}" class="delete">X</button></td>`;
         tbody.appendChild(tr);
       });
+    }
+
+    function validateTotals(){
+      const ordTotal = shareholders.reduce((sum,s)=>sum + (parseFloat(s.ordinary)||0),0);
+      const growTotal = shareholders.reduce((sum,s)=>sum + (parseFloat(s.growth)||0),0);
+      const warning = document.getElementById('warning');
+      if (Math.abs(ordTotal-100) > 0.01 || Math.abs(growTotal-100) > 0.01){
+        warning.style.display = 'block';
+        warning.textContent = `Totals must equal 100%: Ordinary ${ordTotal.toFixed(2)}%, Growth ${growTotal.toFixed(2)}%`;
+        d3.select('#chart').html('');
+      } else {
+        warning.style.display = 'none';
+        renderChart();
+        renderTable();
+      }
+      updateURL();
     }
 
     function generateColors(){
@@ -273,15 +290,13 @@
       const newGrow = parseFloat(prompt('Growth % for '+s.name, s.growth));
       if(!isNaN(newGrow)) s.growth=newGrow;
       renderTable();
-      renderChart();
-      updateURL();
+      validateTotals();
     }
 
     document.getElementById('addShareholder').addEventListener('click',()=>{
       shareholders.push({name:'Shareholder'+(shareholders.length+1), ordinary:0, growth:0});
       renderTable();
-      renderChart();
-      updateURL();
+      validateTotals();
     });
 
     document.getElementById('shareTable').addEventListener('input',(e)=>{
@@ -290,8 +305,7 @@
       if(e.target.classList.contains('name')) shareholders[idx].name = e.target.value;
       if(e.target.classList.contains('ordinary')) shareholders[idx].ordinary = parseFloat(e.target.value)||0;
       if(e.target.classList.contains('growth')) shareholders[idx].growth = parseFloat(e.target.value)||0;
-      renderChart();
-      updateURL();
+      validateTotals();
     });
 
     document.getElementById('shareTable').addEventListener('click',(e)=>{
@@ -299,11 +313,12 @@
         const idx = e.target.getAttribute('data-idx');
         shareholders.splice(idx,1);
         renderTable();
-        renderChart();
-        updateURL();
+        validateTotals();
       }
     });
 
+    document.getElementById('threshold').addEventListener('input',()=>{validateTotals();});
+    document.getElementById('maxValue').addEventListener('input',()=>{validateTotals();});
     document.getElementById('shareTable').addEventListener('keydown',(e)=>{
       if(e.key==='Tab' && !e.shiftKey){
         const inputs = Array.from(document.querySelectorAll('#shareTable tbody input'));
@@ -320,6 +335,7 @@
 
     document.getElementById('threshold').addEventListener('input',()=>{renderChart(); updateURL();});
     document.getElementById('maxValue').addEventListener('input',()=>{renderChart(); updateURL();});
+
 
     document.getElementById('download').addEventListener('click',()=>{
       const svg = document.querySelector('#chart svg');
@@ -354,8 +370,7 @@
 
     loadFromURL();
     renderTable();
-    renderChart();
-    updateURL();
+    validateTotals();
   </script>
 </body>
 </html>
