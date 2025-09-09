@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Growth</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+    }
+    #controls {
+      width: 300px;
+      margin-right: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 4px;
+      text-align: left;
+    }
+    th {
+      background: #eee;
+    }
+    input[type="number"] {
+      width: 60px;
+    }
+    #chart {
+      flex: 1;
+      position: relative;
+    }
+    svg {
+      width: 100%;
+      height: 500px;
+    }
+    .bar {
+      cursor: pointer;
+    }
+    .label {
+      fill: #fff;
+      font-size: 12px;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+    .vertical {
+      writing-mode: vertical-rl;
+    }
+    #tooltip {
+      position: absolute;
+      padding: 4px 8px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: 12px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h2>Shareholders</h2>
+    <table id="shareTable">
+      <thead>
+        <tr><th>Name</th><th>Ord %</th><th>Growth %</th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button id="addShareholder">Add Shareholder</button>
+    <div>
+      <label>Growth threshold (£M): <input type="number" id="threshold" value="5" min="0" step="0.1"></label><br>
+      <label>Max value (£M): <input type="number" id="maxValue" value="10" min="0" step="0.1"></label>
+    </div>
+    <button id="download">Download Chart</button>
+  </div>
+  <div id="chart"></div>
+  <div id="tooltip"></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    let shareholders = [{name:'Shareholder1', ordinary:100, growth:100}];
+
+    function loadFromURL(){
+      const params = new URLSearchParams(window.location.search);
+      if(params.get('sh')){
+        try{
+          shareholders = JSON.parse(atob(params.get('sh')));
+        }catch(e){console.warn('Invalid shareholder data');}
+      }
+      const thr = parseFloat(params.get('thr'));
+      const max = parseFloat(params.get('max'));
+      if(!isNaN(thr)) document.getElementById('threshold').value = thr;
+      if(!isNaN(max)) document.getElementById('maxValue').value = max;
+    }
+
+    function updateURL(){
+      const params = new URLSearchParams();
+      params.set('thr', document.getElementById('threshold').value);
+      params.set('max', document.getElementById('maxValue').value);
+      params.set('sh', btoa(JSON.stringify(shareholders)));
+      history.replaceState(null, '', '?' + params.toString());
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector('#shareTable tbody');
+      tbody.innerHTML='';
+      shareholders.forEach((s,idx)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td><input type="text" value="${s.name}" data-idx="${idx}" class="name"></td>
+                      <td><input type="number" value="${s.ordinary}" data-idx="${idx}" class="ordinary" min="0" max="100"></td>
+                      <td><input type="number" value="${s.growth}" data-idx="${idx}" class="growth" min="0" max="100"></td>
+                      <td><button data-idx="${idx}" class="delete">X</button></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function generateColors(){
+      const reds = shareholders.filter(s=>s.ordinary >=5);
+      const blues = shareholders.filter(s=>s.ordinary <5);
+      const redScale = d3.scaleSequential().domain([0,reds.length]).interpolator(d3.interpolateReds);
+      const blueScale = d3.scaleSequential().domain([0,blues.length]).interpolator(d3.interpolateBlues);
+      shareholders.forEach(s=>{
+        if(s.ordinary>=5){
+          s.color = redScale(reds.indexOf(s));
+        } else {
+          s.color = blueScale(blues.indexOf(s));
+        }
+      });
+    }
+
+    function renderChart(){
+      generateColors();
+      shareholders.sort((a,b)=>b.ordinary - a.ordinary);
+      const maxVal = parseFloat(document.getElementById('maxValue').value);
+      const threshold = parseFloat(document.getElementById('threshold').value);
+      const width = document.getElementById('chart').clientWidth;
+      const height = 500;
+      const margin = {left:60,right:20,top:20,bottom:40};
+      const innerW = width - margin.left - margin.right;
+      const innerH = height - margin.top - margin.bottom;
+
+      const x = d3.scaleLinear().domain([0,100]).range([0,innerW]);
+      const y = d3.scaleLinear().domain([0,maxVal]).range([innerH,0]);
+
+      d3.select('#chart').html('');
+      const svg = d3.select('#chart').append('svg').attr('width',width).attr('height',height);
+      const g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+
+      g.append('g').attr('transform',`translate(0,${innerH})`).call(d3.axisBottom(x).tickFormat(d=>d+'%'));
+      g.append('g').call(d3.axisLeft(y).tickFormat(d=>'£'+d+'M'));
+
+      let xOrd=0; let xGrow=0;
+      const ordSegments=[]; const growSegments=[];
+      shareholders.forEach(s=>{
+        ordSegments.push({s,x:xOrd,width:s.ordinary});
+        xOrd+=s.ordinary;
+      });
+      shareholders.forEach(s=>{
+        growSegments.push({s,x:xGrow,width:s.growth});
+        xGrow+=s.growth;
+      });
+
+      // ordinary rectangles
+      g.selectAll('.ord').data(ordSegments).enter().append('rect')
+        .attr('class','bar ord')
+        .attr('x',d=>x(d.x))
+        .attr('y',y(threshold))
+        .attr('width',d=>x(d.x+d.width)-x(d.x))
+        .attr('height',y(0)-y(threshold))
+        .attr('fill',d=>d.s.color)
+        .on('click',(event,d)=>editShareholder(d.s))
+        .on('mousemove', (event,d)=>showTooltip(event,d.s))
+        .on('mouseleave', hideTooltip);
+
+      // growth rectangles
+      g.selectAll('.grow').data(growSegments).enter().append('rect')
+        .attr('class','bar grow')
+        .attr('x',d=>x(d.x))
+        .attr('y',y(maxVal))
+        .attr('width',d=>x(d.x+d.width)-x(d.x))
+        .attr('height',y(threshold)-y(maxVal))
+        .attr('fill',d=>d.s.color)
+        .attr('opacity',0.6)
+        .on('click',(event,d)=>editShareholder(d.s))
+        .on('mousemove', (event,d)=>showTooltip(event,d.s))
+        .on('mouseleave', hideTooltip);
+
+      // labels ordinary
+      g.selectAll('.labelOrd').data(ordSegments).enter().append('text')
+        .attr('class','label')
+        .attr('x',d=>x(d.x)+ (x(d.x+d.width)-x(d.x))/2)
+        .attr('y',y(threshold)+ (y(0)-y(threshold))/2)
+        .text(d=>`${d.s.name} (${d.s.ordinary}%)`)
+        .each(function(d){
+          const widthRect = x(d.x+d.width)-x(d.x);
+          if(widthRect < 60) d3.select(this).classed('vertical',true);
+          if(widthRect < 20) d3.select(this).style('font-size','8px');
+        });
+
+      // labels growth
+      g.selectAll('.labelGrow').data(growSegments).enter().append('text')
+        .attr('class','label')
+        .attr('x',d=>x(d.x)+ (x(d.x+d.width)-x(d.x))/2)
+        .attr('y',y(maxVal)+ (y(threshold)-y(maxVal))/2)
+        .text(d=>`${d.s.growth}%`)
+        .each(function(d){
+          const widthRect = x(d.x+d.width)-x(d.x);
+          if(widthRect < 60) d3.select(this).classed('vertical',true);
+          if(widthRect < 20) d3.select(this).style('font-size','8px');
+        });
+    }
+
+    function showTooltip(event,s){
+      const tt = document.getElementById('tooltip');
+      tt.style.left = (event.pageX + 5) + 'px';
+      tt.style.top = (event.pageY - 28) + 'px';
+      tt.style.opacity = 1;
+      tt.textContent = `${s.name}: Ord ${s.ordinary}% / Growth ${s.growth}%`;
+    }
+    function hideTooltip(){
+      const tt = document.getElementById('tooltip');
+      tt.style.opacity=0;
+    }
+
+    function editShareholder(s){
+      const newOrd = parseFloat(prompt('Ordinary % for '+s.name, s.ordinary));
+      if(!isNaN(newOrd)) s.ordinary=newOrd;
+      const newGrow = parseFloat(prompt('Growth % for '+s.name, s.growth));
+      if(!isNaN(newGrow)) s.growth=newGrow;
+      renderTable();
+      renderChart();
+      updateURL();
+    }
+
+    document.getElementById('addShareholder').addEventListener('click',()=>{
+      shareholders.push({name:'Shareholder'+(shareholders.length+1), ordinary:0, growth:0});
+      renderTable();
+      renderChart();
+      updateURL();
+    });
+
+    document.getElementById('shareTable').addEventListener('input',(e)=>{
+      const idx = e.target.getAttribute('data-idx');
+      if(idx===null) return;
+      if(e.target.classList.contains('name')) shareholders[idx].name = e.target.value;
+      if(e.target.classList.contains('ordinary')) shareholders[idx].ordinary = parseFloat(e.target.value)||0;
+      if(e.target.classList.contains('growth')) shareholders[idx].growth = parseFloat(e.target.value)||0;
+      renderChart();
+      updateURL();
+    });
+
+    document.getElementById('shareTable').addEventListener('click',(e)=>{
+      if(e.target.classList.contains('delete')){
+        const idx = e.target.getAttribute('data-idx');
+        shareholders.splice(idx,1);
+        renderTable();
+        renderChart();
+        updateURL();
+      }
+    });
+
+    document.getElementById('threshold').addEventListener('input',()=>{renderChart(); updateURL();});
+    document.getElementById('maxValue').addEventListener('input',()=>{renderChart(); updateURL();});
+
+    document.getElementById('download').addEventListener('click',()=>{
+      const svg = document.querySelector('#chart svg');
+      const serializer = new XMLSerializer();
+      const svgStr = serializer.serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      canvas.width = svg.clientWidth;
+      canvas.height = svg.clientHeight;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = function(){
+        ctx.drawImage(img,0,0);
+        const a = document.createElement('a');
+        a.download = 'growth.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      };
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+    });
+
+    loadFromURL();
+    renderTable();
+    renderChart();
+    updateURL();
+  </script>
+</body>
+</html>
