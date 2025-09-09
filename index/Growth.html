@@ -9,6 +9,10 @@
       margin: 0;
       padding: 20px;
       display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #fff;
     }
     #controls {
       width: 300px;
@@ -33,6 +37,8 @@
     #chart {
       flex: 1;
       position: relative;
+      padding: 20px;
+      background: #fff;
     }
     svg {
       width: 100%;
@@ -84,6 +90,8 @@
   <div id="tooltip"></div>
 
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script>
     let shareholders = [{name:'Shareholder1', ordinary:100, growth:100}];
 
@@ -140,22 +148,30 @@
     function generateColors(){
       const reds = shareholders.filter(s=>s.ordinary >=5);
       const blues = shareholders.filter(s=>s.ordinary <5);
-      const redScale = d3.scaleSequential().domain([0,reds.length]).interpolator(d3.interpolateReds);
-      const blueScale = d3.scaleSequential().domain([0,blues.length]).interpolator(d3.interpolateBlues);
+      const redScale = d3.scaleLinear()
+        .domain([0, Math.max(reds.length-1,1)])
+        .range([d3.rgb('#ff6666'), d3.rgb('#ff0000')]);
+      const blueScale = d3.scaleLinear()
+        .domain([0, Math.max(blues.length-1,1)])
+        .range([d3.rgb('#a7c4f2'), d3.rgb('#4472C4')]);
       shareholders.forEach(s=>{
         if(s.ordinary>=5){
-          s.color = redScale(reds.indexOf(s));
+          s.color = d3.color(redScale(reds.indexOf(s))).formatHex();
         } else {
-          s.color = blueScale(blues.indexOf(s));
+          s.color = d3.color(blueScale(blues.indexOf(s))).formatHex();
         }
       });
     }
 
     function renderChart(){
       generateColors();
-      shareholders.sort((a,b)=>b.ordinary - a.ordinary);
-      const maxVal = parseFloat(document.getElementById('maxValue').value);
-      const threshold = parseFloat(document.getElementById('threshold').value);
+      const sorted = [...shareholders].sort((a,b)=>b.ordinary - a.ordinary);
+      let maxVal = parseFloat(document.getElementById('maxValue').value);
+      let threshold = parseFloat(document.getElementById('threshold').value);
+      if(threshold > maxVal){
+        threshold = maxVal;
+        document.getElementById('threshold').value = maxVal;
+      }
       const width = document.getElementById('chart').clientWidth;
       const height = 500;
       const margin = {left:60,right:20,top:20,bottom:40};
@@ -171,14 +187,25 @@
 
       g.append('g').attr('transform',`translate(0,${innerH})`).call(d3.axisBottom(x).tickFormat(d=>d+'%'));
       g.append('g').call(d3.axisLeft(y).tickFormat(d=>'£'+d+'M'));
+      g.append('text')
+        .attr('x',innerW/2)
+        .attr('y',innerH + margin.bottom -5)
+        .attr('text-anchor','middle')
+        .text('Ownership');
+      g.append('text')
+        .attr('transform','rotate(-90)')
+        .attr('x',-innerH/2)
+        .attr('y',-margin.left + 20)
+        .attr('text-anchor','middle')
+        .text('Business Value');
 
       let xOrd=0; let xGrow=0;
       const ordSegments=[]; const growSegments=[];
-      shareholders.forEach(s=>{
+      sorted.forEach(s=>{
         ordSegments.push({s,x:xOrd,width:s.ordinary});
         xOrd+=s.ordinary;
       });
-      shareholders.forEach(s=>{
+      sorted.forEach(s=>{
         growSegments.push({s,x:xGrow,width:s.growth});
         xGrow+=s.growth;
       });
@@ -215,9 +242,15 @@
         .attr('y',y(threshold)+ (y(0)-y(threshold))/2)
         .text(d=>`${d.s.name} (${d.s.ordinary}%)`)
         .each(function(d){
-          const widthRect = x(d.x+d.width)-x(d.x);
-          if(widthRect < 60) d3.select(this).classed('vertical',true);
-          if(widthRect < 20) d3.select(this).style('font-size','8px');
+          const rectWidth = x(d.x + d.width) - x(d.x);
+          const textSel = d3.select(this);
+          const textWidth = this.getBBox().width;
+          if (textWidth > rectWidth) {
+            textSel.classed('vertical', true);
+            const fontSize = parseFloat(textSel.style('font-size'));
+            const scale = rectWidth / textWidth;
+            textSel.style('font-size', (fontSize * scale) + 'px');
+          }
         });
 
       // labels growth
@@ -225,11 +258,17 @@
         .attr('class','label')
         .attr('x',d=>x(d.x)+ (x(d.x+d.width)-x(d.x))/2)
         .attr('y',y(maxVal)+ (y(threshold)-y(maxVal))/2)
-        .text(d=>`${d.s.growth}%`)
+        .text(d=>`${d.s.name} (${d.s.growth}%)`)
         .each(function(d){
-          const widthRect = x(d.x+d.width)-x(d.x);
-          if(widthRect < 60) d3.select(this).classed('vertical',true);
-          if(widthRect < 20) d3.select(this).style('font-size','8px');
+          const rectWidth = x(d.x + d.width) - x(d.x);
+          const textSel = d3.select(this);
+          const textWidth = this.getBBox().width;
+          if (textWidth > rectWidth) {
+            textSel.classed('vertical', true);
+            const fontSize = parseFloat(textSel.style('font-size'));
+            const scale = rectWidth / textWidth;
+            textSel.style('font-size', (fontSize * scale) + 'px');
+          }
         });
     }
 
@@ -280,6 +319,23 @@
 
     document.getElementById('threshold').addEventListener('input',()=>{validateTotals();});
     document.getElementById('maxValue').addEventListener('input',()=>{validateTotals();});
+    document.getElementById('shareTable').addEventListener('keydown',(e)=>{
+      if(e.key==='Tab' && !e.shiftKey){
+        const inputs = Array.from(document.querySelectorAll('#shareTable tbody input'));
+        if(e.target === inputs[inputs.length-1]){
+          setTimeout(()=>{
+            shareholders.push({name:'Shareholder'+(shareholders.length+1), ordinary:0, growth:0});
+            renderTable();
+            renderChart();
+            updateURL();
+          },0);
+        }
+      }
+    });
+
+    document.getElementById('threshold').addEventListener('input',()=>{renderChart(); updateURL();});
+    document.getElementById('maxValue').addEventListener('input',()=>{renderChart(); updateURL();});
+
 
     document.getElementById('download').addEventListener('click',()=>{
       const svg = document.querySelector('#chart svg');
@@ -292,10 +348,22 @@
       const img = new Image();
       img.onload = function(){
         ctx.drawImage(img,0,0);
-        const a = document.createElement('a');
-        a.download = 'growth.png';
-        a.href = canvas.toDataURL('image/png');
-        a.click();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({orientation:'landscape'});
+        const imgData = canvas.toDataURL('image/png');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const imgWidth = pageWidth - 40;
+        const imgHeight = imgWidth * (canvas.height/canvas.width);
+        pdf.addImage(imgData,'PNG',20,20,imgWidth,imgHeight);
+        const startY = 20 + imgHeight + 20;
+        const sorted = [...shareholders].sort((a,b)=>b.ordinary - a.ordinary);
+        pdf.autoTable({
+          startY,
+          head: [['Name','Ord %','Growth %']],
+          body: sorted.map(s=>[s.name, s.ordinary, s.growth])
+        });
+        pdf.textWithLink('Editable version',20,pdf.internal.pageSize.getHeight()-20,{url:window.location.href});
+        pdf.save('growth.pdf');
       };
       img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
     });
