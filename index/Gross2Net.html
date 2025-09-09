@@ -63,6 +63,11 @@
       border: none;
       cursor: pointer;
     }
+    .disclaimer {
+      text-align: center;
+      color: #a00;
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
@@ -113,9 +118,60 @@
       </tbody>
     </table>
   </div>
+  <div id="taxTab" class="tab">
+    <h2>Income Tax Calculator</h2>
+    <table>
+      <tbody>
+        <tr>
+          <td>Salary and Benefits</td>
+          <td><input type="text" id="salary" class="currency" value="£0" /></td>
+        </tr>
+        <tr>
+          <td>Consultancy Income</td>
+          <td><input type="text" id="consult" class="currency" value="£0" /></td>
+        </tr>
+        <tr>
+          <td>Interest</td>
+          <td><input type="text" id="interest" class="currency" value="£0" /></td>
+        </tr>
+        <tr>
+          <td>Dividends</td>
+          <td><input type="text" id="dividend" class="currency" value="£0" /></td>
+        </tr>
+      </tbody>
+    </table>
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Personal Income</th>
+          <th>Corporate Income</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Income</td>
+          <td id="personalTotal" class="output">£0</td>
+          <td id="corpTotal" class="output">£0</td>
+        </tr>
+        <tr>
+          <td>Tax</td>
+          <td id="personalTax" class="output">£0</td>
+          <td id="corpTax" class="output">£0</td>
+        </tr>
+        <tr>
+          <td>Take home</td>
+          <td id="personalTake" class="output">£0</td>
+          <td id="corpTake" class="output">£0</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="disclaimer">Corporate income column is not yet calculated correctly.</p>
+  </div>
   <div class="nav-bar">
     <button data-target="grossTab">Gross2Net</button>
     <button data-target="emiTab">EMI pool calculation</button>
+    <button data-target="taxTab">Income Tax Calculator</button>
   </div>
   <script>
     function parseCurrency(value) {
@@ -196,6 +252,109 @@
       document.getElementById('familyPool').textContent = formatCurrency(family);
     }
 
+    function calcNationalInsurance(consult) {
+      let remaining = consult;
+      remaining -= Math.min(12570, remaining);
+      let ni = 0;
+      const tier = Math.min(37700, remaining);
+      ni += tier * 0.06;
+      remaining -= tier;
+      if (remaining > 0) ni += remaining * 0.02;
+      return ni;
+    }
+
+    function allocateIncome(amount, remaining) {
+      const alloc = { pa: 0, basic: 0, higher: 0, additional: 0 };
+      if (remaining.pa > 0) {
+        const a = Math.min(remaining.pa, amount);
+        alloc.pa = a;
+        remaining.pa -= a;
+        amount -= a;
+      }
+      if (amount > 0 && remaining.basic > 0) {
+        const a = Math.min(remaining.basic, amount);
+        alloc.basic = a;
+        remaining.basic -= a;
+        amount -= a;
+      }
+      if (amount > 0 && remaining.higher > 0) {
+        const a = Math.min(remaining.higher, amount);
+        alloc.higher = a;
+        remaining.higher -= a;
+        amount -= a;
+      }
+      if (amount > 0) alloc.additional = amount;
+      return alloc;
+    }
+
+    function computeTax(alloc, rates, nilAllowance, amount) {
+      let tax = 0;
+      let nil = Math.min(nilAllowance, amount);
+      let a = alloc.pa;
+      let n = Math.min(nil, a);
+      tax += (a - n) * rates.pa;
+      nil -= n;
+      a = alloc.basic;
+      n = Math.min(nil, a);
+      tax += (a - n) * rates.basic;
+      nil -= n;
+      a = alloc.higher;
+      n = Math.min(nil, a);
+      tax += (a - n) * rates.higher;
+      nil -= n;
+      a = alloc.additional;
+      n = Math.min(nil, a);
+      tax += (a - n) * rates.additional;
+      return tax;
+    }
+
+    function calculatePersonalTax(salary, consult, interest, dividend) {
+      const totalIncome = salary + consult + interest + dividend;
+      let personalAllowance = 12570;
+      if (totalIncome > 100000) {
+        personalAllowance = Math.max(0, 12570 - (totalIncome - 100000) / 2);
+      }
+      personalAllowance = Math.min(12570, Math.max(0, personalAllowance));
+      const basicBand = 37700;
+      const higherBand = Math.max(0, 125140 - basicBand - personalAllowance);
+      const remaining = { pa: personalAllowance, basic: basicBand, higher: higherBand };
+
+      const salaryAlloc = allocateIncome(salary, remaining);
+      const consultAlloc = allocateIncome(consult, remaining);
+      const interestAlloc = allocateIncome(interest, remaining);
+      const dividendAlloc = allocateIncome(dividend, remaining);
+
+      const salaryTax = computeTax(salaryAlloc, { pa: 0, basic: 0.2, higher: 0.4, additional: 0.45 }, 0, salary);
+      const consultTax = computeTax(consultAlloc, { pa: 0, basic: 0.2, higher: 0.4, additional: 0.45 }, 0, consult);
+      const interestTax = computeTax(interestAlloc, { pa: 0, basic: 0.2, higher: 0.4, additional: 0.45 }, 500, interest);
+      const dividendTax = computeTax(dividendAlloc, { pa: 0, basic: 0.0875, higher: 0.3375, additional: 0.3935 }, 500, dividend);
+
+      const incomeTax = salaryTax + consultTax + interestTax + dividendTax;
+      const ni = calcNationalInsurance(consult);
+      return incomeTax + ni;
+    }
+
+    function updateTaxCalculator() {
+      const salary = parseCurrency(document.getElementById('salary').value);
+      const consult = parseCurrency(document.getElementById('consult').value);
+      const interest = parseCurrency(document.getElementById('interest').value);
+      const dividend = parseCurrency(document.getElementById('dividend').value);
+      const totalIncome = salary + consult + interest + dividend;
+
+      const personalTax = calculatePersonalTax(salary, consult, interest, dividend);
+      const personalTake = totalIncome - personalTax;
+
+      const corpTax = (consult + interest + dividend) * 0.25;
+      const corpTake = totalIncome - corpTax;
+
+      document.getElementById('personalTotal').textContent = formatCurrency(totalIncome);
+      document.getElementById('corpTotal').textContent = formatCurrency(totalIncome);
+      document.getElementById('personalTax').textContent = formatCurrency(personalTax);
+      document.getElementById('corpTax').textContent = formatCurrency(corpTax);
+      document.getElementById('personalTake').textContent = formatCurrency(personalTake);
+      document.getElementById('corpTake').textContent = formatCurrency(corpTake);
+    }
+
     document.getElementById('addRowBtn').addEventListener('click', addRow);
     document.getElementById('cgtRate').addEventListener('input', updateCalculations);
 
@@ -207,6 +366,19 @@
       exitInput.value = formatCurrency(parseCurrency(exitInput.value));
       updateEmi();
     });
+
+    ['salary', 'consult', 'interest', 'dividend'].forEach(id => {
+      const el = document.getElementById(id);
+      el.addEventListener('focus', () => {
+        el.value = parseCurrency(el.value);
+      });
+      el.addEventListener('blur', () => {
+        el.value = formatCurrency(parseCurrency(el.value));
+        updateTaxCalculator();
+      });
+    });
+
+    updateTaxCalculator();
 
     document.querySelectorAll('.nav-bar button').forEach(btn => {
       btn.addEventListener('click', () => {
