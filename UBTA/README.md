@@ -8,17 +8,18 @@ Run `python3 -m http.server 8000 -d src`, then visit `http://localhost:8000`. No
 
 ## Standalone build
 
-Run `npm run build`, then open `dist/index.html` directly in current Chrome or Edge (`file:///…/dist/index.html`). It contains all CSS and JavaScript and makes no runtime network requests. State and undo history remain in memory and disappear when the tab closes.
+Run `npm run build`, then open `dist/index.html` directly in current Chrome or Edge (`file:///…/dist/index.html`). It contains all CSS and JavaScript and makes no runtime network requests. State, undo history, and inserted images remain only in memory and disappear when the tab closes. Images are stored as local data URLs inside the in-memory document; they are not uploaded or persisted, and larger images increase memory use.
 
 ## Implemented scope
 
 * Versioned closed schema, normalisation, neutral seed document and fixed cover.
 * Landscape A4 page preview with repeated report header, automatic linked contents, stable anchors and `Page X of Y` footers.
 * In-preview constrained editing: body/heading styles, yellow review highlighting, approved links, lists and up to three levels, plain-text paste, session undo/redo, page navigation and debounced reflow.
+* Validated PNG, JPEG, GIF and WebP insertion with captions, required alt text, alignment, accessible resizing and print-safe layout.
 
 ## Deliberately deferred
 
-Tables, editable/uploaded images and diagrams, structural step operations, generated proposals/acronyms, appendix entities, optional sections, collaboration/workflow/version history, persistence/authentication/APIs, exports/imports, and mobile/tablet layouts are not present. There are no placeholder controls for them.
+Tables, diagrams, structural step operations, generated proposals/acronyms, appendix entities, optional sections, collaboration/workflow/version history, persistence/authentication/APIs, exports/imports, and mobile/tablet layouts are not present. There are no placeholder controls for them.
 
 ## Typography and supplied assets
 
