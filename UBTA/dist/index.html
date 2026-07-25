@@ -1,43 +1,496 @@
-<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>UBTA Steps Plan Editor</title><style>:root{--lav:#8d8eb1;--coral:#f79097;--grey:#808080;--paper:#fffefa;--review:#ffe985;--ink:#343444;--font:"Century Gothic","Futura","Aptos","Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:#e9e9ec;color:var(--ink);font-family:var(--font)}.toolbar{position:sticky;top:0;z-index:20;min-height:58px;background:#fff;border-bottom:3px solid var(--lav);display:flex;gap:6px;align-items:center;padding:8px 18px;box-shadow:0 2px 8px #0002}.brand{font-weight:700;color:var(--lav);margin-right:16px}.toolbar button,.toolbar select{height:34px;border:1px solid #ccc;border-radius:4px;background:#fff;color:#444;padding:0 10px;font:inherit}.toolbar button:hover,.toolbar button:focus,.toolbar select:focus{border-color:var(--lav);outline:2px solid #8d8eb155}.toolbar button.active{background:var(--review)}.spacer{flex:1}.nav{display:flex;align-items:center;gap:7px;white-space:nowrap}.canvas{padding:24px 20px 70px;overflow:auto}.pagedjs_pages{display:flex;flex-direction:column;align-items:center;gap:22px}.pagedjs_page{width:297mm;height:210mm;background:var(--paper);box-shadow:0 3px 16px #0003;overflow:hidden}.pagedjs_pagebox{height:100%}@media(max-width:1200px){.pagedjs_page{transform-origin:top center;zoom:.92}.toolbar{padding-inline:8px}.brand{display:none}}
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>UBTA Steps Plan Editor</title><style>:root{--lav:#8d8eb1;--coral:#f79097;--grey:#808080;--paper:#fffefa;--review:#ffe985;--ink:#343444;--font:"Century Gothic","Futura","Aptos","Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:#e9e9ec;color:var(--ink);font-family:var(--font)}.toolbar{position:sticky;top:0;z-index:20;min-height:58px;background:#fff;border-bottom:3px solid var(--lav);display:flex;gap:6px;align-items:center;padding:8px 18px;box-shadow:0 2px 8px #0002;overflow-x:auto}.brand{font-weight:700;color:var(--lav);margin-right:10px;white-space:nowrap}.toolbar button,.toolbar select{height:34px;border:1px solid #ccc;border-radius:4px;background:#fff;color:#444;padding:0 9px;font:inherit;white-space:nowrap}.toolbar button:hover,.toolbar button:focus,.toolbar select:focus{border-color:var(--lav);outline:2px solid #8d8eb155}.toolbar button.active{background:var(--review)}.toolbar .danger{color:#8a2930}.toolbar-divider{height:28px;border-left:1px solid #ddd;margin:0 3px}.spacer{flex:1}.nav{display:flex;align-items:center;gap:7px;white-space:nowrap}.canvas{padding:24px 20px 70px;overflow:auto}.pagedjs_pages{display:flex;flex-direction:column;align-items:center;gap:22px}.pagedjs_page{width:297mm;height:210mm;background:var(--paper);box-shadow:0 3px 16px #0003;overflow:hidden}.pagedjs_pagebox{height:100%}@media(max-width:1400px){.pagedjs_page{transform-origin:top center;zoom:.86}.toolbar{padding-inline:8px}.brand{display:none}}
 
-@page{size:A4 landscape;margin:0}.sheet-source{width:297mm;height:210mm;position:relative;padding:42mm 24mm 18mm;background:var(--paper);overflow:hidden}.page-header{position:absolute;top:9mm;left:20mm;right:20mm;height:25mm;display:flex;align-items:center;border-bottom:.4mm solid #8d8eb155;padding-bottom:3mm}.header-brand{font-size:22pt;font-weight:700;letter-spacing:.04em;color:var(--lav)}.header-details{margin-left:auto;color:var(--grey);font-size:9.5pt}.header-details b{color:var(--coral);padding:0 2mm}.page-footer{position:absolute;bottom:7mm;left:20mm;right:20mm;text-align:center;color:var(--grey);font-size:9pt}.cover{padding-top:48mm}.cover-kicker{color:var(--coral);text-transform:uppercase;letter-spacing:.15em;font-size:11pt}.cover h1{font-size:30pt;line-height:1.08;color:var(--lav);margin:5mm 0 2mm;max-width:190mm}.cover h2{font-size:18pt;font-weight:400;margin:0 0 12mm}.meta-grid{display:grid;grid-template-columns:25mm 80mm 25mm 80mm;gap:3mm 5mm;border-top:.5mm solid var(--lav);padding-top:7mm;font-size:10pt}.meta-grid dt{color:var(--grey)}.meta-grid dd{margin:0}.doc-title{font-size:23pt;color:var(--lav);margin:0 0 9mm}.section-title{font-size:18pt;color:var(--lav);border-bottom:.5mm solid var(--coral);padding-bottom:3mm;margin:0 0 7mm}.step-label{color:var(--coral);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2mm}.document-body{font-size:10.5pt;line-height:1.48}.editable-block{margin:0 0 4mm;padding:1mm;border-radius:2px}.editable-block:focus{outline:1px solid var(--lav);background:#fff}.editable-block h1,.editable-block h2,.editable-block h3,.editable-block h4{margin:0}.editable-block[data-type=heading][data-level="1"]{font-size:20pt;color:var(--lav)}.editable-block[data-type=heading][data-level="2"]{font-size:16pt;color:var(--lav)}.editable-block[data-type=heading][data-level="3"]{font-size:13pt;color:#5e5f82}.editable-block[data-type=heading][data-level="4"]{font-size:11pt;font-weight:700}mark,.toc-review{background:var(--review);color:inherit;padding:0 .3mm}a{color:#6c6e9e;text-decoration-thickness:1px}.list-block{margin:1mm 0 4mm;padding-left:8mm}.list-item{display:list-item;margin:1.5mm 0;padding-left:2mm}.list-item[data-level="2"]{margin-left:9mm}.list-item[data-level="3"]{margin-left:18mm}.toc{list-style:none;padding:0;margin:0}.toc li{display:flex;align-items:baseline;margin:5mm 0}.toc a{color:var(--ink);text-decoration:none}.toc .dots{flex:1;border-bottom:.35mm dotted #aaa;margin:0 3mm}.toc-page{font-variant-numeric:tabular-nums}.toc-step{padding-left:9mm}h1,h2,h3,h4{break-after:avoid}.page-break{break-before:page}
-</style></head><body><header class="toolbar" aria-label="Editing toolbar"><span class="brand">UBTA Steps Plan</span><select id="style" aria-label="Block style"><option value="body">Body text</option><option value="heading1">Heading 1</option><option value="heading2">Heading 2</option><option value="heading3">Heading 3</option><option value="heading4">Heading 4</option></select><button data-command="highlight" title="Yellow highlight">Highlight</button><button data-command="link">Link</button><button data-command="unlink">Remove link</button><button data-command="bulletList">Bullets</button><button data-command="numberList">Numbers</button><button data-command="indent">Increase level</button><button data-command="outdent">Decrease level</button><button data-command="undo">Undo</button><button data-command="redo">Redo</button><span class="spacer"></span><nav class="nav" aria-label="Page navigation"><button id="prev" aria-label="Previous page">‹</button><span>Page <b id="current">1</b> of <b id="total">—</b></span><button id="next" aria-label="Next page">›</button></nav></header><div class="canvas"><div id="preview" class="pagedjs_pages" aria-live="polite"></div></div><script>/*! Paged.js compatibility adapter for the offline prototype.
+@page{size:A4 landscape;margin:0}.sheet-source{width:297mm;height:210mm;position:relative;padding:42mm 24mm 18mm;background:var(--paper);overflow:hidden}.page-header{position:absolute;top:9mm;left:20mm;right:20mm;height:25mm;display:flex;align-items:center;border-bottom:.4mm solid #8d8eb155;padding-bottom:3mm}.header-brand{font-size:22pt;font-weight:700;letter-spacing:.04em;color:var(--lav)}.header-details{margin-left:auto;color:var(--grey);font-size:9.5pt}.header-details b{color:var(--coral);padding:0 2mm}.page-footer{position:absolute;bottom:7mm;left:20mm;right:20mm;text-align:center;color:var(--grey);font-size:9pt}.cover{padding-top:48mm}.cover-kicker{color:var(--coral);text-transform:uppercase;letter-spacing:.15em;font-size:11pt}.cover h1{font-size:30pt;line-height:1.08;color:var(--lav);margin:5mm 0 2mm;max-width:190mm}.cover h2{font-size:18pt;font-weight:400;margin:0 0 12mm}.meta-grid{display:grid;grid-template-columns:25mm 80mm 25mm 80mm;gap:3mm 5mm;border-top:.5mm solid var(--lav);padding-top:7mm;font-size:10pt}.meta-grid dt{color:var(--grey)}.meta-grid dd{margin:0}.doc-title{font-size:23pt;color:var(--lav);margin:0 0 9mm}.section-title,.step-title{font:700 18pt var(--font);color:var(--lav);border:0;border-bottom:.5mm solid var(--coral);background:transparent;padding:0 0 3mm;margin:0 0 7mm;width:100%}.step-title:focus{outline:2px solid #8d8eb166;background:#fff}.step-label{color:var(--coral);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2mm}.document-body{font-size:10.5pt;line-height:1.48}.editable-block{margin:0 0 4mm;padding:1mm;border-radius:2px}.editable-block:focus,.editable-runs:focus{outline:1px solid var(--lav);background:#fff}.editable-block[data-type=heading][data-level="1"]{font-size:20pt;color:var(--lav)}.editable-block[data-type=heading][data-level="2"]{font-size:16pt;color:var(--lav)}.editable-block[data-type=heading][data-level="3"]{font-size:13pt;color:#5e5f82}.editable-block[data-type=heading][data-level="4"]{font-size:11pt;font-weight:700}mark,.toc-review{background:var(--review);color:inherit;padding:0 .3mm}a{color:#6c6e9e;text-decoration-thickness:1px}.list-block{margin:1mm 0 4mm;padding-left:8mm}.list-item{display:list-item;margin:1.5mm 0;padding-left:2mm}.list-item[data-level="2"]{margin-left:9mm}.list-item[data-level="3"]{margin-left:18mm}.toc{list-style:none;padding:0;margin:0}.toc li{display:flex;align-items:baseline;margin:5mm 0}.toc a{color:var(--ink);text-decoration:none}.toc .dots{flex:1;border-bottom:.35mm dotted #aaa;margin:0 3mm}.toc-page{font-variant-numeric:tabular-nums}.toc-step{padding-left:9mm}.table-block table{width:100%;border-collapse:collapse;table-layout:fixed}.table-block caption{text-align:left;font-weight:700;margin-bottom:2mm}.table-block th,.table-block td{position:relative;border:1px solid #bcbcca;padding:2mm;vertical-align:top}.table-block th{background:#ececf3;text-align:left}.table-block .numeric{text-align:right;font-variant-numeric:tabular-nums}.table-block .total-row{font-weight:700;border-top:2px solid var(--lav)}.editable-runs{display:block;min-height:1.3em}.column-resizer{position:absolute;z-index:2;right:-4px;top:0;width:8px;height:100%;padding:0;border:0;background:transparent;cursor:col-resize}.column-resizer:focus{outline:2px solid var(--coral)}.image-block figure{margin:0;text-align:center}.image-block img{display:block;max-height:85mm;object-fit:contain;margin:auto}.image-block figcaption{margin-top:2mm;color:var(--grey);font-size:9pt}.image-error{border:1px solid #a33;padding:3mm;color:#822}h1,h2,h3,h4{break-after:avoid}.page-break{break-before:page}
+</style></head><body><header class="toolbar" aria-label="Editing toolbar">
+    <span class="brand">UBTA Steps Plan</span>
+    <select id="style" aria-label="Block style">
+      <option value="body">Body text</option><option value="heading1">Heading 1</option><option value="heading2">Heading 2</option><option value="heading3">Heading 3</option><option value="heading4">Heading 4</option>
+    </select>
+    <button data-command="highlight" title="Yellow highlight">Highlight</button>
+    <button data-command="link">Link</button><button data-command="unlink">Remove link</button>
+    <button data-command="bulletList">Bullets</button><button data-command="numberList">Numbers</button>
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <button data-command="addStep">Add step</button><button data-command="moveStepUp" title="Move active step earlier">Step ↑</button><button data-command="moveStepDown" title="Move active step later">Step ↓</button><button data-command="deleteStep" class="danger">Delete step</button>
+    <button data-command="addImage">Add image</button><input id="image-upload" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+    <button data-command="undo">Undo</button><button data-command="redo">Redo</button>
+    <span class="spacer"></span>
+    <nav class="nav" aria-label="Page navigation"><button id="prev" aria-label="Previous page">‹</button><span>Page <b id="current">1</b> of <b id="total">—</b></span><button id="next" aria-label="Next page">›</button></nav>
+  </header>
+  <div class="canvas"><div id="preview" class="pagedjs_pages" aria-live="polite"></div></div><script>/*! Paged.js compatibility adapter for the offline prototype.
  * Paged.js is MIT licensed: Copyright (c) 2018 Adam Hyde, Julie Blanc and contributors.
  * This constrained adapter implements the Previewer surface used here because the full upstream bundle was unavailable in the supplied materials. */
 window.Paged={Previewer:class{async preview(content,styles,target){target.replaceChildren();const nodes=[...content.children];for(const node of nodes){const page=document.createElement('div');page.className='pagedjs_page';page.tabIndex=-1;const box=document.createElement('div');box.className='pagedjs_pagebox';box.append(node.cloneNode(true));page.append(box);target.append(page)}return{total:target.children.length,pages:[...target.children]}}}};
 
-const SCHEMA_VERSION=1;
-const safeHref=h=>{if(typeof h!=='string')return null;return /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*)/i.test(h)?h:null};
-const id=(v,p='id')=>/^[A-Za-z][\w-]*$/.test(v||'')?v:`${p}-${crypto.randomUUID?.()||Math.random().toString(36).slice(2)}`;
-function normaliseRuns(runs){return (Array.isArray(runs)?runs:[]).map(r=>({text:String(r?.text??''),highlight:r?.highlight===true,link:safeHref(r?.link?.href)?{href:safeHref(r.link.href)}:null})).filter(r=>r.text).reduce((a,r)=>{const x=a.at(-1);if(x&&x.highlight===r.highlight&&x.link?.href===r.link?.href)x.text+=r.text;else a.push(r);return a},[])}
-function normaliseBlock(b){const type=['heading','paragraph','bulletList','numberList'].includes(b?.type)?b.type:'paragraph';const out={id:id(b?.id,'block'),type};if(type==='heading'){out.level=Math.min(4,Math.max(1,Number(b.level)||1));out.runs=normaliseRuns(b.runs)}else if(type==='paragraph')out.runs=normaliseRuns(b.runs);else out.items=(Array.isArray(b.items)?b.items:[]).map(i=>({id:id(i?.id,'item'),level:Math.min(3,Math.max(1,Number(i?.level)||1)),runs:normaliseRuns(i?.runs)}));return out}
-function normaliseDocument(d){const meta={};for(const k of ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'])meta[k]=String(d?.meta?.[k]??'');const groups=k=>(Array.isArray(d?.[k])?d[k]:[]).map(x=>({id:id(x?.id,k.slice(0,-1)),title:String(x?.title??''),blocks:(Array.isArray(x?.blocks)?x.blocks:[]).map(normaliseBlock)}));return{schemaVersion:SCHEMA_VERSION,meta,sections:groups('sections'),steps:groups('steps')}}
-function validateDocument(d){const n=normaliseDocument(d);if(d?.schemaVersion!==SCHEMA_VERSION)throw Error('Unsupported schema version');return n}
-const seedDocument=normaliseDocument({schemaVersion:1,meta:{clientName:'Example Client Ltd',projectTitle:'Corporate Restructure',documentType:'Steps Plan',subtitle:'Detailed Steps Plan',date:'25 July 2026',version:'v1',adviser:'UBTA Accountants Ltd',status:'Draft'},sections:[{id:'scope',title:'Scope of works',blocks:[{id:'scope-h',type:'heading',level:2,runs:[{text:'Purpose and scope'}]},{id:'scope-p1',type:'paragraph',runs:[{text:'This plan outlines the principal implementation steps for a proposed corporate restructure.'}]},{id:'scope-p2',type:'paragraph',runs:[{text:'Figures and legal mechanics marked for review require completion before finalisation.',highlight:true}]},{id:'scope-list',type:'bulletList',items:[{id:'si1',level:1,runs:[{text:'Confirm commercial objectives'}]},{id:'si2',level:2,runs:[{text:'Review supporting records'}]},{id:'si3',level:1,runs:[{text:'Consult the ',link:null},{text:'HMRC guidance',link:{href:'https://www.gov.uk/government/organisations/hm-revenue-customs'}}]}]}]}],steps:[{id:'share-restructure',title:'Implement the corporate share restructure',blocks:[{id:'step-h',type:'heading',level:2,runs:[{text:'Implementation'}]},{id:'step-p1',type:'paragraph',runs:[{text:'The directors will approve the proposed corporate restructure and authorise the required documentation.'}]},{id:'step-p2',type:'paragraph',runs:[{text:'Professional advisers should confirm the sequence immediately before implementation.'}]},{id:'step-list',type:'numberList',items:[{id:'st1',level:1,runs:[{text:'Prepare board minutes and resolutions.'}]},{id:'st2',level:2,runs:[{text:'Check company records and statutory filings.'}]},{id:'st3',level:1,runs:[{text:'Complete and retain the signed documents.'}]}]}]}]});
+const SCHEMA_VERSION = 2;
+
+const IDENTIFIER = /^[A-Za-z][\w-]*$/;
+const IMAGE_DATA = /^data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=\s]+$/i;
+
+const safeHref = value => {
+  if (typeof value !== 'string') return null;
+  return /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*$)/i.test(value) ? value : null;
+};
+
+const safeImageSrc = value => {
+  if (typeof value !== 'string') return null;
+  if (IMAGE_DATA.test(value)) return value.replace(/\s/g, '');
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
+};
+
+const makeId = (value, prefix = 'id') =>
+  IDENTIFIER.test(value || '')
+    ? value
+    : `${prefix}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
+
+function normaliseRuns(runs) {
+  return (Array.isArray(runs) ? runs : [])
+    .map(run => ({
+      text: String(run?.text ?? ''),
+      highlight: run?.highlight === true,
+      link: safeHref(run?.link?.href) ? { href: safeHref(run.link.href) } : null,
+    }))
+    .filter(run => run.text)
+    .reduce((result, run) => {
+      const previous = result.at(-1);
+      if (
+        previous &&
+        previous.highlight === run.highlight &&
+        previous.link?.href === run.link?.href
+      ) {
+        previous.text += run.text;
+      } else {
+        result.push(run);
+      }
+      return result;
+    }, []);
+}
+
+const normaliseCell = (cell, prefix) => ({
+  id: makeId(cell?.id, prefix),
+  runs: normaliseRuns(cell?.runs),
+});
+
+function normaliseBlock(block) {
+  const allowed = ['heading', 'paragraph', 'bulletList', 'numberList', 'table', 'image'];
+  const type = allowed.includes(block?.type) ? block.type : 'paragraph';
+  const output = { id: makeId(block?.id, 'block'), type };
+
+  if (type === 'heading') {
+    output.level = Math.min(4, Math.max(1, Number(block.level) || 1));
+    output.runs = normaliseRuns(block.runs);
+  } else if (type === 'paragraph') {
+    output.runs = normaliseRuns(block.runs);
+  } else if (type.endsWith('List')) {
+    output.items = (Array.isArray(block.items) ? block.items : []).map(item => ({
+      id: makeId(item?.id, 'item'),
+      level: Math.min(3, Math.max(1, Number(item?.level) || 1)),
+      runs: normaliseRuns(item?.runs),
+    }));
+  } else if (type === 'table') {
+    const sourceColumns = Array.isArray(block.columns) ? block.columns : [];
+    const columnCount = Math.min(8, Math.max(1, sourceColumns.length || 2));
+    const widthTotal = sourceColumns
+      .slice(0, columnCount)
+      .reduce((sum, column) => sum + Math.max(5, Number(column?.width) || 0), 0) || columnCount;
+    output.caption = String(block.caption ?? '');
+    output.columns = Array.from({ length: columnCount }, (_, index) => ({
+      id: makeId(sourceColumns[index]?.id, 'column'),
+      heading: String(sourceColumns[index]?.heading ?? `Column ${index + 1}`),
+      width: Math.round((Math.max(5, Number(sourceColumns[index]?.width) || 1) / widthTotal) * 1000) / 10,
+      numeric: sourceColumns[index]?.numeric === true,
+    }));
+    output.rows = (Array.isArray(block.rows) ? block.rows : []).map((row, rowIndex) => ({
+      id: makeId(row?.id, 'row'),
+      isTotal: row?.isTotal === true,
+      cells: output.columns.map((column, columnIndex) =>
+        normaliseCell(row?.cells?.[columnIndex], `${output.id}-${rowIndex}-${column.id}`),
+      ),
+    }));
+  } else {
+    output.src = safeImageSrc(block.src);
+    output.alt = String(block.alt ?? '').trim();
+    output.caption = String(block.caption ?? '');
+    output.width = Math.min(100, Math.max(20, Number(block.width) || 100));
+  }
+  return output;
+}
+
+const normaliseGroup = (group, prefix) => ({
+  id: makeId(group?.id, prefix),
+  title: String(group?.title ?? ''),
+  blocks: (Array.isArray(group?.blocks) ? group.blocks : []).map(normaliseBlock),
+});
+
+function normaliseDocument(document) {
+  const meta = {};
+  for (const key of ['clientName', 'projectTitle', 'documentType', 'date', 'version', 'subtitle', 'adviser', 'status']) {
+    meta[key] = String(document?.meta?.[key] ?? '');
+  }
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    meta,
+    sections: (Array.isArray(document?.sections) ? document.sections : []).map(group => normaliseGroup(group, 'section')),
+    steps: (Array.isArray(document?.steps) ? document.steps : []).map(group => normaliseGroup(group, 'step')),
+  };
+}
+
+function validateDocument(document) {
+  if (![1, SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version');
+  const normalised = normaliseDocument(document);
+  for (const group of [...normalised.sections, ...normalised.steps]) {
+    for (const block of group.blocks) {
+      if (block.type === 'image' && (!block.src || !block.alt)) {
+        throw Error('Images require a safe source and meaningful alternative text');
+      }
+    }
+  }
+  return normalised;
+}
+
+function transactionProposals(document) {
+  return normaliseDocument(document).steps.map((step, index) => ({
+    id: `proposal-${step.id}`,
+    stepId: step.id,
+    title: `Step ${index + 1}. ${step.title}`,
+    anchor: `anchor-${step.id}`,
+    summary: step.blocks
+      .filter(block => block.type === 'paragraph')
+      .flatMap(block => block.runs)
+      .map(run => run.text)
+      .join(' ')
+      .trim(),
+  }));
+}
+
+const seedDocument = normaliseDocument({
+  schemaVersion: SCHEMA_VERSION,
+  meta: { clientName: 'Example Client Ltd', projectTitle: 'Corporate Restructure', documentType: 'Steps Plan', subtitle: 'Detailed Steps Plan', date: '25 July 2026', version: 'v1', adviser: 'UBTA Accountants Ltd', status: 'Draft' },
+  sections: [{ id: 'scope', title: 'Scope of works', blocks: [
+    { id: 'scope-h', type: 'heading', level: 2, runs: [{ text: 'Purpose and scope' }] },
+    { id: 'scope-p1', type: 'paragraph', runs: [{ text: 'This plan outlines the principal implementation steps for a proposed corporate restructure.' }] },
+    { id: 'scope-p2', type: 'paragraph', runs: [{ text: 'Figures and legal mechanics marked for review require completion before finalisation.', highlight: true }] },
+    { id: 'scope-list', type: 'bulletList', items: [{ id: 'si1', level: 1, runs: [{ text: 'Confirm commercial objectives' }] }, { id: 'si2', level: 2, runs: [{ text: 'Review supporting records' }] }, { id: 'si3', level: 1, runs: [{ text: 'Consult the ' }, { text: 'HMRC guidance', link: { href: 'https://www.gov.uk/government/organisations/hm-revenue-customs' } }] }] },
+  ] }],
+  steps: [{ id: 'share-restructure', title: 'Implement the corporate share restructure', blocks: [
+    { id: 'step-h', type: 'heading', level: 2, runs: [{ text: 'Implementation' }] },
+    { id: 'step-p1', type: 'paragraph', runs: [{ text: 'The directors will approve the proposed corporate restructure and authorise the required documentation.' }] },
+    { id: 'step-p2', type: 'paragraph', runs: [{ text: 'Professional advisers should confirm the sequence immediately before implementation.' }] },
+    { id: 'step-list', type: 'numberList', items: [{ id: 'st1', level: 1, runs: [{ text: 'Prepare board minutes and resolutions.' }] }, { id: 'st2', level: 2, runs: [{ text: 'Check company records and statutory filings.' }] }, { id: 'st3', level: 1, runs: [{ text: 'Complete and retain the signed documents.' }] }] },
+    { id: 'consideration', type: 'table', caption: 'Illustrative consideration', columns: [{ id: 'detail', heading: 'Detail', width: 70 }, { id: 'amount', heading: 'Amount (£)', width: 30, numeric: true }], rows: [{ id: 'ordinary-shares', cells: [{ runs: [{ text: 'Ordinary shares' }] }, { runs: [{ text: '10,000' }] }] }, { id: 'total', isTotal: true, cells: [{ runs: [{ text: 'Total' }] }, { runs: [{ text: '10,000' }] }] }] },
+  ] }],
+});
 
 class History{constructor(value){this.past=[];this.future=[];this.value=value}commit(value){this.past.push(structuredClone(this.value));this.value=value;this.future=[]}undo(){if(!this.past.length)return this.value;this.future.push(structuredClone(this.value));return this.value=this.past.pop()}redo(){if(!this.future.length)return this.value;this.past.push(structuredClone(this.value));return this.value=this.future.pop()}}
 
-const history=new History(structuredClone(seedDocument));let state=history.value,currentPage=1,timer;
-const $=s=>document.querySelector(s); const textRuns=r=>r.map(x=>x.text).join('');
-function hasReview(group){return group.blocks.some(b=>(b.runs||b.items?.flatMap(i=>i.runs)||[]).some(r=>r.highlight))}
-function header(){const x=document.createElement('header');x.className='page-header';x.setAttribute('aria-label','UBTA Accountants report header');x.innerHTML='<span class="header-brand">UBTA</span><span class="header-details">UBTA Accountants Ltd <b aria-hidden="true">·</b> Practical tax advice</span>';return x}
-function sheet(kind){const x=document.createElement('section');x.className=`sheet-source ${kind}`;x.append(header());return x}
-function footer(x,n,total){const f=document.createElement('footer');f.className='page-footer';f.textContent=`Page ${n} of ${total}`;x.append(f)}
-function runsHTML(runs){return runs.map(r=>{let t=escapeHTML(r.text);if(r.link)t=`<a href="${escapeHTML(r.link.href)}" target="_blank" rel="noopener">${t}</a>`;return r.highlight?`<mark>${t}</mark>`:t}).join('')}
-const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function editable(block){const el=document.createElement('div');el.className='editable-block';el.dataset.blockId=block.id;el.dataset.type=block.type;el.dataset.level=block.level||'';el.contentEditable='true';el.lang='en-GB';el.spellcheck=true;if(block.type==='heading')el.innerHTML=runsHTML(block.runs);else if(block.type==='paragraph')el.innerHTML=runsHTML(block.runs);else{el.classList.add('list-block');el.dataset.listType=block.type;el.innerHTML=block.items.map(i=>`<div class="list-item" data-item-id="${i.id}" data-level="${i.level}" style="list-style-type:${block.type==='numberList'?'decimal':'disc'}">${runsHTML(i.runs)}</div>`).join('')}return el}
-function cover(){const s=sheet('cover');const m=state.meta;s.insertAdjacentHTML('beforeend',`<div class="cover-kicker">${escapeHTML(m.documentType)} · ${escapeHTML(m.status)}</div><h1>${escapeHTML(m.clientName)}</h1><h2>${escapeHTML(m.projectTitle)} — ${escapeHTML(m.subtitle)}</h2><dl class="meta-grid"><dt>Document</dt><dd>${escapeHTML(m.documentType)}</dd><dt>Date</dt><dd>${escapeHTML(m.date)}</dd><dt>Version</dt><dd>${escapeHTML(m.version)}</dd><dt>Adviser</dt><dd>${escapeHTML(m.adviser)}</dd><dt>Status</dt><dd>${escapeHTML(m.status)}</dd></dl>`);return s}
-function toc(pageMap={}){const s=sheet('contents');let entries=state.sections.map(g=>({g,label:g.title,cls:''})).concat(state.steps.map((g,i)=>({g,label:`Step ${i+1}. ${g.title}`,cls:'toc-step'})));s.insertAdjacentHTML('beforeend',`<h1 class="doc-title">Contents</h1><ol class="toc">${entries.map(e=>`<li class="${e.cls} ${hasReview(e.g)?'toc-review':''}"><a href="#anchor-${e.g.id}">${escapeHTML(e.label)}</a><span class="dots"></span><span class="toc-page">${pageMap[`anchor-${e.g.id}`]||'—'}</span></li>`).join('')}</ol>`);return s}
-function groupSheet(g,title,kind){const s=sheet(kind);s.id=`anchor-${g.id}`;s.tabIndex=-1;s.insertAdjacentHTML('beforeend',kind==='step'?`<div class="step-label">${escapeHTML(title.split('.')[0])}</div><h1 class="section-title">${escapeHTML(title)}</h1>`:`<h1 class="section-title">${escapeHTML(title)}</h1>`);const body=document.createElement('div');body.className='document-body';g.blocks.forEach(b=>body.append(editable(b)));s.append(body);return s}
-async function render(){const source=document.createElement('main');source.append(cover(),toc(window.__pageMap||{}));state.sections.forEach(g=>source.append(groupSheet(g,g.title,'section')));state.steps.forEach((g,i)=>source.append(groupSheet(g,`Step ${i+1}. ${g.title}`,'step')));const previewer=new Paged.Previewer();const target=$('#preview');await previewer.preview(source,[],target);const pages=[...target.children],map={};pages.forEach((p,i)=>{footer(p.querySelector('.sheet-source'),i+1,pages.length);p.dataset.pageNumber=i+1;p.querySelectorAll('[id^="anchor-"]').forEach(a=>map[a.id]=i+1)});window.__pageMap=map;target.querySelectorAll('.toc-page').forEach((n,i)=>{const keys=[...state.sections,...state.steps].map(g=>`anchor-${g.id}`);n.textContent=map[keys[i]]||'—'});bindEditing();$('#total').textContent=pages.length;currentPage=Math.min(currentPage,pages.length);$('#current').textContent=currentPage}
-function findBlock(id){for(const group of [...state.sections,...state.steps]){const b=group.blocks.find(x=>x.id===id);if(b)return b}}
-function commit(mutator){const previous=state;state=structuredClone(state);mutator();state=normaliseDocument(state);history.value=previous;history.commit(state);state=history.value;render()}
-function bindEditing(){document.querySelectorAll('.editable-block').forEach(el=>{el.addEventListener('focusin',()=>window.activeBlock=el.dataset.blockId);el.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>syncBlock(el),450)});el.addEventListener('paste',e=>{e.preventDefault();const t=e.clipboardData.getData('text/plain');const sel=getSelection();if(sel.rangeCount){sel.deleteFromDocument();sel.getRangeAt(0).insertNode(document.createTextNode(t));sel.collapseToEnd()}el.dispatchEvent(new InputEvent('input'))});el.addEventListener('keydown',listKeys)});document.querySelectorAll('.toc a').forEach(a=>a.onclick=e=>{e.preventDefault();const dest=document.querySelector(a.getAttribute('href'));dest?.closest('.pagedjs_page')?.scrollIntoView({behavior:'smooth',block:'center'});dest?.focus()})}
-function syncBlock(el){const id=el.dataset.blockId;commit(()=>{const b=findBlock(id);if(!b)return;if(b.type.endsWith('List'))b.items=[...el.querySelectorAll('.list-item')].map((x,i)=>({id:x.dataset.itemId||`${id}-item-${i}`,level:+x.dataset.level||1,runs:[{text:x.textContent,highlight:false,link:null}]}));else b.runs=[{text:el.textContent,highlight:false,link:null}]})}
-function listKeys(e){const el=e.currentTarget;if(!el.dataset.listType)return;const item=e.target.closest('.list-item');if(e.key==='Enter'){e.preventDefault();if(!item.textContent.trim()){commit(()=>{const b=findBlock(el.dataset.blockId);b.type='paragraph';b.runs=[{text:'',highlight:false,link:null}];delete b.items});return}const n=document.createElement('div');n.className='list-item';n.dataset.itemId=`item-${Date.now()}`;n.dataset.level=item.dataset.level;n.style.listStyleType=el.dataset.listType==='numberList'?'decimal':'disc';n.contentEditable='true';item.after(n);n.focus()}if(e.key==='Backspace'&&item&&!item.textContent&&getSelection().anchorOffset===0){e.preventDefault();commit(()=>{const b=findBlock(el.dataset.blockId);b.type='paragraph';b.runs=[{text:'',highlight:false,link:null}];delete b.items})}}
-function selectedOffsets(el){const sel=getSelection();if(!sel.rangeCount||!el.contains(sel.anchorNode)||!el.contains(sel.focusNode))return null;const r=sel.getRangeAt(0),pre=document.createRange();pre.selectNodeContents(el);pre.setEnd(r.startContainer,r.startOffset);const start=pre.toString().length;return[start,start+r.toString().length]}
-function transformSelection(kind,value){const el=document.querySelector(`[data-block-id="${window.activeBlock}"]`),off=el&&selectedOffsets(el);if(!off||off[0]===off[1])return;commit(()=>{const b=findBlock(window.activeBlock);if(!b||!b.runs)return;const text=textRuns(b.runs),[a,z]=off;b.runs=normaliseRuns([{text:text.slice(0,a)},{text:text.slice(a,z),highlight:kind==='highlight'?!runsAt(b.runs,a).highlight:runsAt(b.runs,a).highlight,link:kind==='link'?{href:value}:kind==='unlink'?null:runsAt(b.runs,a).link},{text:text.slice(z)}])})}
-function runsAt(runs,pos){let n=0;return runs.find(r=>(n+=r.text.length)>pos)||runs.at(-1)||{}}
-function command(action){const id=window.activeBlock;if(action==='undo'){state=history.undo();return render()}if(action==='redo'){state=history.redo();return render()}if(action==='highlight')return transformSelection('highlight');if(action==='link'){const href=prompt('Link destination (https:, http:, mailto: or #anchor)');if(href&&safeHref(href))transformSelection('link',href);else if(href)alert('That link destination is not permitted.');return}if(action==='unlink')return transformSelection('unlink');if(!id)return;commit(()=>{const b=findBlock(id);if(action.startsWith('heading')){b.type='heading';b.level=+action.at(-1);b.runs=b.runs||b.items?.flatMap(i=>i.runs)||[]}else if(action==='body'){b.type='paragraph';b.runs=b.runs||b.items?.flatMap(i=>i.runs)||[]}else if(['bulletList','numberList'].includes(action)){const runs=b.runs||[{text:'List item'}];b.type=action;b.items=[{id:`${id}-item`,level:1,runs}];delete b.runs}else if(action==='indent'||action==='outdent'){if(b.items)b.items[0].level=Math.max(1,Math.min(3,b.items[0].level+(action==='indent'?1:-1)))}})}
-document.querySelectorAll('[data-command]').forEach(x=>x.onclick=()=>command(x.dataset.command));$('#style').onchange=e=>command(e.target.value);function go(n){const pages=[...document.querySelectorAll('.pagedjs_page')];currentPage=Math.max(1,Math.min(pages.length,n));$('#current').textContent=currentPage;pages[currentPage-1]?.scrollIntoView({behavior:'smooth',block:'center'})}$('#prev').onclick=()=>go(currentPage-1);$('#next').onclick=()=>go(currentPage+1);addEventListener('keydown',e=>{if(e.altKey&&e.key==='ArrowLeft')go(currentPage-1);if(e.altKey&&e.key==='ArrowRight')go(currentPage+1)});render();
+
+const history = new History(structuredClone(seedDocument));
+let state = history.value;
+let currentPage = 1;
+let timer;
+const $ = selector => document.querySelector(selector);
+const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+const textRuns = runs => runs.map(run => run.text).join('');
+
+function hasReview(group) {
+  return group.blocks.some(block => {
+    const runs = block.runs || block.items?.flatMap(item => item.runs) || block.rows?.flatMap(row => row.cells.flatMap(cell => cell.runs)) || [];
+    return runs.some(run => run.highlight);
+  });
+}
+
+function header() {
+  const element = document.createElement('header');
+  element.className = 'page-header';
+  element.setAttribute('aria-label', 'UBTA Accountants report header');
+  element.innerHTML = '<span class="header-brand">UBTA</span><span class="header-details">UBTA Accountants Ltd <b aria-hidden="true">·</b> Practical tax advice</span>';
+  return element;
+}
+
+function sheet(kind) {
+  const element = document.createElement('section');
+  element.className = `sheet-source ${kind}`;
+  element.append(header());
+  return element;
+}
+
+function footer(element, page, total) {
+  const item = document.createElement('footer');
+  item.className = 'page-footer';
+  item.textContent = `Page ${page} of ${total}`;
+  element.append(item);
+}
+
+function runsHTML(runs = []) {
+  return runs.map(run => {
+    let text = escapeHTML(run.text);
+    if (run.link) text = `<a href="${escapeHTML(run.link.href)}" target="_blank" rel="noopener">${text}</a>`;
+    return run.highlight ? `<mark>${text}</mark>` : text;
+  }).join('');
+}
+
+function editableRuns(runs, attributes = '') {
+  return `<span class="editable-runs" contenteditable="true" spellcheck="true" ${attributes}>${runsHTML(runs)}</span>`;
+}
+
+function editable(block) {
+  const element = document.createElement('div');
+  element.className = 'editable-block';
+  element.dataset.blockId = block.id;
+  element.dataset.type = block.type;
+  element.dataset.level = block.level || '';
+  element.lang = 'en-GB';
+
+  if (['heading', 'paragraph'].includes(block.type)) {
+    element.contentEditable = 'true';
+    element.spellcheck = true;
+    element.innerHTML = runsHTML(block.runs);
+  } else if (block.type.endsWith('List')) {
+    element.contentEditable = 'true';
+    element.classList.add('list-block');
+    element.dataset.listType = block.type;
+    element.innerHTML = block.items.map(item => `<div class="list-item" data-item-id="${item.id}" data-level="${item.level}">${runsHTML(item.runs)}</div>`).join('');
+  } else if (block.type === 'table') {
+    element.classList.add('table-block');
+    element.innerHTML = `<table><caption>${editableRuns([{ text: block.caption }], 'data-table-caption')}</caption><colgroup>${block.columns.map(column => `<col style="width:${column.width}%">`).join('')}</colgroup><thead><tr>${block.columns.map((column, index) => `<th scope="col">${editableRuns([{ text: column.heading }], `data-column="${index}"`)}${index < block.columns.length - 1 ? `<button class="column-resizer" data-resize="${index}" aria-label="Resize ${escapeHTML(column.heading)} column" title="Drag to resize column"></button>` : ''}</th>`).join('')}</tr></thead><tbody>${block.rows.map((row, rowIndex) => `<tr class="${row.isTotal ? 'total-row' : ''}" data-row="${rowIndex}">${row.cells.map((cell, columnIndex) => `<td class="${block.columns[columnIndex].numeric ? 'numeric' : ''}">${editableRuns(cell.runs, `data-cell="${columnIndex}"`)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  } else if (block.type === 'image') {
+    element.classList.add('image-block');
+    element.innerHTML = block.src
+      ? `<figure><img src="${escapeHTML(block.src)}" alt="${escapeHTML(block.alt)}" style="width:${block.width}%"><figcaption>${escapeHTML(block.caption)}</figcaption></figure>`
+      : '<p class="image-error" role="status">Image unavailable. Add a valid HTTPS image or upload an image.</p>';
+  }
+  return element;
+}
+
+function cover() {
+  const element = sheet('cover');
+  const meta = state.meta;
+  element.insertAdjacentHTML('beforeend', `<div class="cover-kicker">${escapeHTML(meta.documentType)} · ${escapeHTML(meta.status)}</div><h1>${escapeHTML(meta.clientName)}</h1><h2>${escapeHTML(meta.projectTitle)} — ${escapeHTML(meta.subtitle)}</h2><dl class="meta-grid"><dt>Document</dt><dd>${escapeHTML(meta.documentType)}</dd><dt>Date</dt><dd>${escapeHTML(meta.date)}</dd><dt>Version</dt><dd>${escapeHTML(meta.version)}</dd><dt>Adviser</dt><dd>${escapeHTML(meta.adviser)}</dd><dt>Status</dt><dd>${escapeHTML(meta.status)}</dd></dl>`);
+  return element;
+}
+
+function contents(pageMap = {}) {
+  const element = sheet('contents');
+  const entries = state.sections.map(group => ({ group, label: group.title, className: '' }))
+    .concat(transactionProposals(state).map(proposal => ({ group: state.steps.find(step => step.id === proposal.stepId), label: proposal.title, className: 'toc-step', anchor: proposal.anchor })));
+  element.insertAdjacentHTML('beforeend', `<h1 class="doc-title">Contents</h1><ol class="toc">${entries.map(entry => { const anchor = entry.anchor || `anchor-${entry.group.id}`; return `<li class="${entry.className} ${hasReview(entry.group) ? 'toc-review' : ''}" data-anchor="${anchor}"><a href="#${anchor}">${escapeHTML(entry.label)}</a><span class="dots"></span><span class="toc-page">${pageMap[anchor] || '—'}</span></li>`; }).join('')}</ol>`);
+  return element;
+}
+
+function groupSheet(group, title, kind) {
+  const element = sheet(kind);
+  element.id = `anchor-${group.id}`;
+  element.tabIndex = -1;
+  const label = kind === 'step' ? title.match(/^Step \d+/)?.[0] : '';
+  element.insertAdjacentHTML('beforeend', kind === 'step' ? `<div class="step-heading"><div class="step-label">${escapeHTML(label)}</div><input class="step-title" data-step-title="${group.id}" value="${escapeHTML(group.title)}" aria-label="${escapeHTML(label)} title"></div>` : `<h1 class="section-title">${escapeHTML(title)}</h1>`);
+  const body = document.createElement('div');
+  body.className = 'document-body';
+  group.blocks.forEach(block => body.append(editable(block)));
+  element.append(body);
+  return element;
+}
+
+async function render() {
+  const source = document.createElement('main');
+  source.append(cover(), contents(window.__pageMap || {}));
+  state.sections.forEach(group => source.append(groupSheet(group, group.title, 'section')));
+  state.steps.forEach((group, index) => source.append(groupSheet(group, `Step ${index + 1}. ${group.title}`, 'step')));
+  const previewer = new Paged.Previewer();
+  const target = $('#preview');
+  await previewer.preview(source, [], target);
+  const pages = [...target.children];
+  const pageMap = {};
+  pages.forEach((page, index) => {
+    footer(page.querySelector('.sheet-source'), index + 1, pages.length);
+    page.dataset.pageNumber = index + 1;
+    page.querySelectorAll('[id^="anchor-"]').forEach(anchor => { pageMap[anchor.id] = index + 1; });
+  });
+  window.__pageMap = pageMap;
+  target.querySelectorAll('.toc li').forEach(item => { item.querySelector('.toc-page').textContent = pageMap[item.dataset.anchor] || '—'; });
+  bindEditing();
+  $('#total').textContent = pages.length;
+  currentPage = Math.min(currentPage, pages.length);
+  $('#current').textContent = currentPage;
+}
+
+function findBlock(id) {
+  for (const group of [...state.sections, ...state.steps]) {
+    const block = group.blocks.find(item => item.id === id);
+    if (block) return block;
+  }
+}
+
+function commit(mutator) {
+  state = structuredClone(state);
+  mutator();
+  state = normaliseDocument(state);
+  history.commit(state);
+  state = history.value;
+  render();
+}
+
+// Translate the browser's small, approved inline vocabulary back into schema runs.
+// Text from all other elements is retained, but unsafe markup and URLs are discarded.
+function runsFromElement(element) {
+  const runs = [];
+  const walk = (node, highlight = false, link = null) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      runs.push({ text: node.nodeValue || '', highlight, link: link ? { href: link } : null });
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.tagName.toLowerCase();
+    const nextHighlight = highlight || tag === 'mark';
+    const nextLink = tag === 'a' ? safeHref(node.getAttribute('href')) : link;
+    node.childNodes.forEach(child => walk(child, nextHighlight, nextLink));
+  };
+  element.childNodes.forEach(node => walk(node));
+  return normaliseRuns(runs);
+}
+
+function syncBlock(element) {
+  const id = element.dataset.blockId;
+  commit(() => {
+    const block = findBlock(id);
+    if (!block) return;
+    if (block.type.endsWith('List')) {
+      block.items = [...element.querySelectorAll('.list-item')].map((item, index) => ({ id: item.dataset.itemId || `${id}-item-${index}`, level: +item.dataset.level || 1, runs: runsFromElement(item) }));
+    } else if (block.type === 'table') {
+      block.caption = element.querySelector('[data-table-caption]').textContent;
+      element.querySelectorAll('[data-column]').forEach(item => { block.columns[+item.dataset.column].heading = item.textContent; });
+      element.querySelectorAll('[data-row]').forEach(row => row.querySelectorAll('[data-cell]').forEach(cell => { block.rows[+row.dataset.row].cells[+cell.dataset.cell].runs = runsFromElement(cell); }));
+    } else {
+      block.runs = runsFromElement(element);
+    }
+  });
+}
+
+function bindEditing() {
+  document.querySelectorAll('.editable-block').forEach(element => {
+    element.addEventListener('focusin', event => { window.activeBlock = element.dataset.blockId; window.activeEditable = event.target.closest('[contenteditable="true"]'); });
+    element.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => syncBlock(element), 450); });
+    element.addEventListener('paste', event => { if (!event.target.closest('[contenteditable="true"]')) return; event.preventDefault(); document.execCommand('insertText', false, event.clipboardData.getData('text/plain')); });
+    element.addEventListener('keydown', listKeys);
+  });
+  document.querySelectorAll('[data-step-title]').forEach(input => input.addEventListener('change', () => commit(() => { const step = state.steps.find(item => item.id === input.dataset.stepTitle); if (step) step.title = input.value.trim() || 'Untitled step'; })));
+  bindResizers();
+  document.querySelectorAll('.toc a').forEach(anchor => { anchor.onclick = event => { event.preventDefault(); const destination = document.querySelector(anchor.getAttribute('href')); destination?.closest('.pagedjs_page')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); destination?.focus(); }; });
+}
+
+function bindResizers() {
+  document.querySelectorAll('.column-resizer').forEach(handle => {
+    handle.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      const tableBlock = handle.closest('.table-block');
+      const index = +handle.dataset.resize;
+      const delta = event.key === 'ArrowLeft' ? -2 : 2;
+      commit(() => {
+        const block = findBlock(tableBlock.dataset.blockId);
+        if (block.columns[index].width + delta < 10 || block.columns[index + 1].width - delta < 10) return;
+        block.columns[index].width += delta;
+        block.columns[index + 1].width -= delta;
+      });
+    });
+    handle.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    const tableBlock = handle.closest('.table-block');
+    const blockId = tableBlock.dataset.blockId;
+    const index = +handle.dataset.resize;
+    const startX = event.clientX;
+    const block = findBlock(blockId);
+    const start = block.columns.map(column => column.width);
+    const move = moveEvent => {
+      const delta = ((moveEvent.clientX - startX) / tableBlock.offsetWidth) * 100;
+      const amount = Math.max(-start[index] + 10, Math.min(start[index + 1] - 10, delta));
+      const columns = tableBlock.querySelectorAll('col');
+      columns[index].style.width = `${start[index] + amount}%`;
+      columns[index + 1].style.width = `${start[index + 1] - amount}%`;
+    };
+    const up = upEvent => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      const delta = ((upEvent.clientX - startX) / tableBlock.offsetWidth) * 100;
+      commit(() => { const current = findBlock(blockId); const amount = Math.max(-start[index] + 10, Math.min(start[index + 1] - 10, delta)); current.columns[index].width = start[index] + amount; current.columns[index + 1].width = start[index + 1] - amount; });
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up, { once: true });
+    });
+  });
+}
+
+function listKeys(event) {
+  const element = event.currentTarget;
+  if (!element.dataset.listType) return;
+  const item = event.target.closest('.list-item');
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    if (!item.textContent.trim()) { commit(() => { const block = findBlock(element.dataset.blockId); block.type = 'paragraph'; block.runs = []; delete block.items; }); return; }
+    const next = document.createElement('div'); next.className = 'list-item'; next.dataset.itemId = `item-${crypto.randomUUID()}`; next.dataset.level = item.dataset.level; next.contentEditable = 'true'; item.after(next); next.focus();
+  }
+}
+
+function selectedOffsets(element) {
+  const selection = getSelection();
+  if (!selection.rangeCount || !element?.contains(selection.anchorNode) || !element.contains(selection.focusNode)) return null;
+  const range = selection.getRangeAt(0);
+  const before = document.createRange(); before.selectNodeContents(element); before.setEnd(range.startContainer, range.startOffset);
+  const start = before.toString().length;
+  return [start, start + range.toString().length];
+}
+
+function runsAt(runs, position) { let count = 0; return runs.find(run => (count += run.text.length) > position) || runs.at(-1) || {}; }
+function transformSelection(kind, value) {
+  const element = window.activeEditable || document.querySelector(`[data-block-id="${window.activeBlock}"]`);
+  const offsets = selectedOffsets(element);
+  if (!offsets || offsets[0] === offsets[1]) return;
+  commit(() => {
+    const block = findBlock(window.activeBlock); if (!block?.runs) return;
+    const text = textRuns(block.runs); const [start, end] = offsets; const current = runsAt(block.runs, start);
+    block.runs = normaliseRuns([{ text: text.slice(0, start) }, { text: text.slice(start, end), highlight: kind === 'highlight' ? !current.highlight : current.highlight, link: kind === 'link' ? { href: value } : kind === 'unlink' ? null : current.link }, { text: text.slice(end) }]);
+  });
+}
+
+function command(action) {
+  const id = window.activeBlock;
+  if (action === 'undo') { state = history.undo(); return render(); }
+  if (action === 'redo') { state = history.redo(); return render(); }
+  if (action === 'addStep') return commit(() => state.steps.push({ id: `step-${crypto.randomUUID()}`, title: 'New transaction step', blocks: [{ id: `block-${crypto.randomUUID()}`, type: 'paragraph', runs: [{ text: 'Describe the transaction step.' }] }] }));
+  if (action === 'moveStepUp' || action === 'moveStepDown' || action === 'deleteStep') return manageStep(action);
+  if (action === 'addImage') return addImage();
+  if (action === 'highlight') return transformSelection('highlight');
+  if (action === 'link') { const href = prompt('Link destination (https:, http:, mailto: or #anchor)'); if (href && safeHref(href)) transformSelection('link', href); else if (href) alert('That link destination is not permitted.'); return; }
+  if (action === 'unlink') return transformSelection('unlink');
+  if (!id) return;
+  commit(() => { const block = findBlock(id); if (!block) return; if (action.startsWith('heading')) { block.type = 'heading'; block.level = +action.at(-1); block.runs ||= block.items?.flatMap(item => item.runs) || []; } else if (action === 'body') { block.type = 'paragraph'; block.runs ||= block.items?.flatMap(item => item.runs) || []; } else if (['bulletList', 'numberList'].includes(action)) { const runs = block.runs || [{ text: 'List item' }]; block.type = action; block.items = [{ id: `${id}-item`, level: 1, runs }]; delete block.runs; } });
+}
+
+function activeStepIndex() { return state.steps.findIndex(step => step.blocks.some(block => block.id === window.activeBlock)); }
+function manageStep(action) {
+  const index = activeStepIndex();
+  if (index < 0) return;
+  commit(() => { if (action === 'deleteStep') state.steps.splice(index, 1); else { const target = action === 'moveStepUp' ? index - 1 : index + 1; if (target >= 0 && target < state.steps.length) [state.steps[index], state.steps[target]] = [state.steps[target], state.steps[index]]; } });
+}
+
+function addImage() {
+  const input = $('#image-upload');
+  input.value = '';
+  input.onchange = () => {
+    const file = input.files[0]; if (!file || !/^image\/(png|jpeg|gif|webp)$/.test(file.type) || file.size > 5_000_000) { alert('Choose a PNG, JPEG, GIF or WebP image smaller than 5 MB.'); return; }
+    const alt = prompt('Describe the image for people who cannot see it:')?.trim(); if (!alt) { alert('Alternative text is required.'); return; }
+    const reader = new FileReader(); reader.onload = () => { if (!safeImageSrc(reader.result)) return; const index = Math.max(0, activeStepIndex()); commit(() => state.steps[index].blocks.push({ id: `image-${crypto.randomUUID()}`, type: 'image', src: reader.result, alt, caption: '', width: 100 })); }; reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+document.querySelectorAll('[data-command]').forEach(button => { button.onclick = () => command(button.dataset.command); });
+$('#style').onchange = event => command(event.target.value);
+function go(page) { const pages = [...document.querySelectorAll('.pagedjs_page')]; currentPage = Math.max(1, Math.min(pages.length, page)); $('#current').textContent = currentPage; pages[currentPage - 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+$('#prev').onclick = () => go(currentPage - 1); $('#next').onclick = () => go(currentPage + 1);
+addEventListener('keydown', event => { if (event.altKey && event.key === 'ArrowLeft') go(currentPage - 1); if (event.altKey && event.key === 'ArrowRight') go(currentPage + 1); });
+render();
 </script></body></html>

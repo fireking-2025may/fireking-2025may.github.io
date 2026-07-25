@@ -1,4 +1,4 @@
-# UBTA Steps Plan Editor — phases 1–3 prototype
+# UBTA Steps Plan Editor
 
 A client-side, desktop-first prototype for a constrained UBTA landscape steps plan. The serialisable schema is the source of truth; editor input is normalised to headings, paragraphs, three-level bullet/number lists, and text runs containing only review highlight and safe links.
 
@@ -12,13 +12,16 @@ Run `npm run build`, then open `dist/index.html` directly in current Chrome or E
 
 ## Implemented scope
 
-* Versioned closed schema, normalisation, neutral seed document and fixed cover.
-* Landscape A4 page preview with repeated report header, automatic linked contents, stable anchors and `Page X of Y` footers.
-* In-preview constrained editing: body/heading styles, yellow review highlighting, approved links, lists and up to three levels, plain-text paste, session undo/redo, page navigation and debounced reflow.
+* Versioned closed schema for rich-text, image, and table blocks, with safe URL and image validation.
+* Landscape A4 page preview with repeated report header, anchor-keyed linked contents, derived transaction proposals and `Page X of Y` footers.
+* In-preview constrained editing that preserves sanitised highlights and links after every render.
+* Editable step titles plus stable-ID add, reorder and delete controls.
+* Editable accessible tables, highlighted total rows and keyboard-focusable column resizing.
+* Validated PNG, JPEG, GIF and WebP uploads with required alternative text.
 
 ## Deliberately deferred
 
-Tables, editable/uploaded images and diagrams, structural step operations, generated proposals/acronyms, appendix entities, optional sections, collaboration/workflow/version history, persistence/authentication/APIs, exports/imports, and mobile/tablet layouts are not present. There are no placeholder controls for them.
+Diagrams, generated acronyms, appendix entities, optional sections, collaboration/workflow/version history, persistence/authentication/APIs, exports/imports, and mobile/tablet layouts are not present.
 
 ## Typography and supplied assets
 
