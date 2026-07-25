@@ -15,10 +15,11 @@ Run `npm run build`, then open `dist/index.html` directly in current Chrome or E
 * Versioned closed schema, normalisation, neutral seed document and fixed cover.
 * Landscape A4 page preview with repeated report header, automatic linked contents, stable anchors and `Page X of Y` footers.
 * In-preview constrained editing: body/heading styles, yellow review highlighting, approved links, lists and up to three levels, plain-text paste, session undo/redo, page navigation and debounced reflow.
+* Stable-ID step management with editable titles, add/duplicate/delete/reorder controls, deletion safeguards, accessible position announcements, focus/scroll preservation, and undo/redo for every structural change.
 
 ## Deliberately deferred
 
-Tables, editable/uploaded images and diagrams, structural step operations, generated proposals/acronyms, appendix entities, optional sections, collaboration/workflow/version history, persistence/authentication/APIs, exports/imports, and mobile/tablet layouts are not present. There are no placeholder controls for them.
+Tables, editable/uploaded images and diagrams, generated proposals/acronyms, appendix entities, optional sections, collaboration/workflow/version history, persistence/authentication/APIs, exports/imports, and mobile/tablet layouts are not present. There are no placeholder controls for them.
 
 ## Typography and supplied assets
 
