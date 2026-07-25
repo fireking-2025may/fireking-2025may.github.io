@@ -1,19 +1,196 @@
 <!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>UBTA Steps Plan Editor</title><style>:root{--lav:#8d8eb1;--coral:#f79097;--grey:#808080;--paper:#fffefa;--review:#ffe985;--ink:#343444;--font:"Century Gothic","Futura","Aptos","Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:#e9e9ec;color:var(--ink);font-family:var(--font)}.toolbar{position:sticky;top:0;z-index:20;min-height:58px;background:#fff;border-bottom:3px solid var(--lav);display:flex;gap:6px;align-items:center;padding:8px 18px;box-shadow:0 2px 8px #0002}.brand{font-weight:700;color:var(--lav);margin-right:16px}.toolbar button,.toolbar select{height:34px;border:1px solid #ccc;border-radius:4px;background:#fff;color:#444;padding:0 10px;font:inherit}.toolbar button:hover,.toolbar button:focus,.toolbar select:focus{border-color:var(--lav);outline:2px solid #8d8eb155}.toolbar button.active{background:var(--review)}.spacer{flex:1}.nav{display:flex;align-items:center;gap:7px;white-space:nowrap}.canvas{padding:24px 20px 70px;overflow:auto}.pagedjs_pages{display:flex;flex-direction:column;align-items:center;gap:22px}.pagedjs_page{width:297mm;height:210mm;background:var(--paper);box-shadow:0 3px 16px #0003;overflow:hidden}.pagedjs_pagebox{height:100%}@media(max-width:1200px){.pagedjs_page{transform-origin:top center;zoom:.92}.toolbar{padding-inline:8px}.brand{display:none}}
 
-@page{size:A4 landscape;margin:0}.sheet-source{width:297mm;height:210mm;position:relative;padding:42mm 24mm 18mm;background:var(--paper);overflow:hidden}.page-header{position:absolute;top:9mm;left:20mm;right:20mm;height:25mm;display:flex;align-items:center;border-bottom:.4mm solid #8d8eb155;padding-bottom:3mm}.header-brand{font-size:22pt;font-weight:700;letter-spacing:.04em;color:var(--lav)}.header-details{margin-left:auto;color:var(--grey);font-size:9.5pt}.header-details b{color:var(--coral);padding:0 2mm}.page-footer{position:absolute;bottom:7mm;left:20mm;right:20mm;text-align:center;color:var(--grey);font-size:9pt}.cover{padding-top:48mm}.cover-kicker{color:var(--coral);text-transform:uppercase;letter-spacing:.15em;font-size:11pt}.cover h1{font-size:30pt;line-height:1.08;color:var(--lav);margin:5mm 0 2mm;max-width:190mm}.cover h2{font-size:18pt;font-weight:400;margin:0 0 12mm}.meta-grid{display:grid;grid-template-columns:25mm 80mm 25mm 80mm;gap:3mm 5mm;border-top:.5mm solid var(--lav);padding-top:7mm;font-size:10pt}.meta-grid dt{color:var(--grey)}.meta-grid dd{margin:0}.doc-title{font-size:23pt;color:var(--lav);margin:0 0 9mm}.section-title{font-size:18pt;color:var(--lav);border-bottom:.5mm solid var(--coral);padding-bottom:3mm;margin:0 0 7mm}.step-label{color:var(--coral);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2mm}.document-body{font-size:10.5pt;line-height:1.48}.editable-block{margin:0 0 4mm;padding:1mm;border-radius:2px}.editable-block:focus{outline:1px solid var(--lav);background:#fff}.editable-block h1,.editable-block h2,.editable-block h3,.editable-block h4{margin:0}.editable-block[data-type=heading][data-level="1"]{font-size:20pt;color:var(--lav)}.editable-block[data-type=heading][data-level="2"]{font-size:16pt;color:var(--lav)}.editable-block[data-type=heading][data-level="3"]{font-size:13pt;color:#5e5f82}.editable-block[data-type=heading][data-level="4"]{font-size:11pt;font-weight:700}mark,.toc-review{background:var(--review);color:inherit;padding:0 .3mm}a{color:#6c6e9e;text-decoration-thickness:1px}.list-block{margin:1mm 0 4mm;padding-left:8mm}.list-item{display:list-item;margin:1.5mm 0;padding-left:2mm}.list-item[data-level="2"]{margin-left:9mm}.list-item[data-level="3"]{margin-left:18mm}.toc{list-style:none;padding:0;margin:0}.toc li{display:flex;align-items:baseline;margin:5mm 0}.toc a{color:var(--ink);text-decoration:none}.toc .dots{flex:1;border-bottom:.35mm dotted #aaa;margin:0 3mm}.toc-page{font-variant-numeric:tabular-nums}.toc-step{padding-left:9mm}h1,h2,h3,h4{break-after:avoid}.page-break{break-before:page}
+@page{size:A4 landscape;margin:0}.sheet-source{width:297mm;height:210mm;position:relative;padding:42mm 24mm 18mm;background:var(--paper);overflow:hidden}.page-header{position:absolute;top:9mm;left:20mm;right:20mm;height:25mm;display:flex;align-items:center;border-bottom:.4mm solid #8d8eb155;padding-bottom:3mm}.header-brand{font-size:22pt;font-weight:700;letter-spacing:.04em;color:var(--lav)}.header-details{margin-left:auto;color:var(--grey);font-size:9.5pt}.header-details b{color:var(--coral);padding:0 2mm}.page-footer{position:absolute;bottom:7mm;left:20mm;right:20mm;text-align:center;color:var(--grey);font-size:9pt}.cover{padding-top:48mm}.cover-kicker{color:var(--coral);text-transform:uppercase;letter-spacing:.15em;font-size:11pt}.cover h1{font-size:30pt;line-height:1.08;color:var(--lav);margin:5mm 0 2mm;max-width:190mm}.cover h2{font-size:18pt;font-weight:400;margin:0 0 12mm}.meta-grid{display:grid;grid-template-columns:25mm 80mm 25mm 80mm;gap:3mm 5mm;border-top:.5mm solid var(--lav);padding-top:7mm;font-size:10pt}.meta-grid dt{color:var(--grey)}.meta-grid dd{margin:0}.doc-title{font-size:23pt;color:var(--lav);margin:0 0 9mm}.section-title{font-size:18pt;color:var(--lav);border-bottom:.5mm solid var(--coral);padding-bottom:3mm;margin:0 0 7mm}.step-label{color:var(--coral);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2mm}.document-body{font-size:10.5pt;line-height:1.48}.editable-block{margin:0 0 4mm;padding:1mm;border-radius:2px}.editable-block:focus{outline:1px solid var(--lav);background:#fff}.editable-block h1,.editable-block h2,.editable-block h3,.editable-block h4{margin:0}.editable-block[data-type=heading][data-level="1"]{font-size:20pt;color:var(--lav)}.editable-block[data-type=heading][data-level="2"]{font-size:16pt;color:var(--lav)}.editable-block[data-type=heading][data-level="3"]{font-size:13pt;color:#5e5f82}.editable-block[data-type=heading][data-level="4"]{font-size:11pt;font-weight:700}mark,.toc-review{background:var(--review);color:inherit;padding:0 .3mm}a{color:#6c6e9e;text-decoration-thickness:1px}.list-block{margin:1mm 0 4mm;padding-left:8mm}.list-item{display:list-item;margin:1.5mm 0;padding-left:2mm}.list-item[data-level="2"]{margin-left:9mm}.list-item[data-level="3"]{margin-left:18mm}.structured-block table{width:100%;border-collapse:collapse;table-layout:fixed}.structured-block th,.structured-block td{border:.25mm solid #b8b9ca;padding:2mm;text-align:left}.structured-block th{background:#ededf5;color:var(--lav)}.image-block{text-align:center}.image-block img{height:auto;max-width:100%}.image-block .align-left{display:block;margin-right:auto}.image-block .align-centre{display:block;margin-inline:auto}.image-block .align-right{display:block;margin-left:auto}.image-caption{color:var(--grey);font-size:9pt;margin:1mm 0}.toc{list-style:none;padding:0;margin:0}.toc li{display:flex;align-items:baseline;margin:5mm 0}.toc a{color:var(--ink);text-decoration:none}.toc .dots{flex:1;border-bottom:.35mm dotted #aaa;margin:0 3mm}.toc-page{font-variant-numeric:tabular-nums}.toc-step{padding-left:9mm}h1,h2,h3,h4{break-after:avoid}.page-break{break-before:page}
 </style></head><body><header class="toolbar" aria-label="Editing toolbar"><span class="brand">UBTA Steps Plan</span><select id="style" aria-label="Block style"><option value="body">Body text</option><option value="heading1">Heading 1</option><option value="heading2">Heading 2</option><option value="heading3">Heading 3</option><option value="heading4">Heading 4</option></select><button data-command="highlight" title="Yellow highlight">Highlight</button><button data-command="link">Link</button><button data-command="unlink">Remove link</button><button data-command="bulletList">Bullets</button><button data-command="numberList">Numbers</button><button data-command="indent">Increase level</button><button data-command="outdent">Decrease level</button><button data-command="undo">Undo</button><button data-command="redo">Redo</button><span class="spacer"></span><nav class="nav" aria-label="Page navigation"><button id="prev" aria-label="Previous page">‹</button><span>Page <b id="current">1</b> of <b id="total">—</b></span><button id="next" aria-label="Next page">›</button></nav></header><div class="canvas"><div id="preview" class="pagedjs_pages" aria-live="polite"></div></div><script>/*! Paged.js compatibility adapter for the offline prototype.
  * Paged.js is MIT licensed: Copyright (c) 2018 Adam Hyde, Julie Blanc and contributors.
  * This constrained adapter implements the Previewer surface used here because the full upstream bundle was unavailable in the supplied materials. */
 window.Paged={Previewer:class{async preview(content,styles,target){target.replaceChildren();const nodes=[...content.children];for(const node of nodes){const page=document.createElement('div');page.className='pagedjs_page';page.tabIndex=-1;const box=document.createElement('div');box.className='pagedjs_pagebox';box.append(node.cloneNode(true));page.append(box);target.append(page)}return{total:target.children.length,pages:[...target.children]}}}};
 
-const SCHEMA_VERSION=1;
-const safeHref=h=>{if(typeof h!=='string')return null;return /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*)/i.test(h)?h:null};
-const id=(v,p='id')=>/^[A-Za-z][\w-]*$/.test(v||'')?v:`${p}-${crypto.randomUUID?.()||Math.random().toString(36).slice(2)}`;
-function normaliseRuns(runs){return (Array.isArray(runs)?runs:[]).map(r=>({text:String(r?.text??''),highlight:r?.highlight===true,link:safeHref(r?.link?.href)?{href:safeHref(r.link.href)}:null})).filter(r=>r.text).reduce((a,r)=>{const x=a.at(-1);if(x&&x.highlight===r.highlight&&x.link?.href===r.link?.href)x.text+=r.text;else a.push(r);return a},[])}
-function normaliseBlock(b){const type=['heading','paragraph','bulletList','numberList'].includes(b?.type)?b.type:'paragraph';const out={id:id(b?.id,'block'),type};if(type==='heading'){out.level=Math.min(4,Math.max(1,Number(b.level)||1));out.runs=normaliseRuns(b.runs)}else if(type==='paragraph')out.runs=normaliseRuns(b.runs);else out.items=(Array.isArray(b.items)?b.items:[]).map(i=>({id:id(i?.id,'item'),level:Math.min(3,Math.max(1,Number(i?.level)||1)),runs:normaliseRuns(i?.runs)}));return out}
-function normaliseDocument(d){const meta={};for(const k of ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'])meta[k]=String(d?.meta?.[k]??'');const groups=k=>(Array.isArray(d?.[k])?d[k]:[]).map(x=>({id:id(x?.id,k.slice(0,-1)),title:String(x?.title??''),blocks:(Array.isArray(x?.blocks)?x.blocks:[]).map(normaliseBlock)}));return{schemaVersion:SCHEMA_VERSION,meta,sections:groups('sections'),steps:groups('steps')}}
-function validateDocument(d){const n=normaliseDocument(d);if(d?.schemaVersion!==SCHEMA_VERSION)throw Error('Unsupported schema version');return n}
-const seedDocument=normaliseDocument({schemaVersion:1,meta:{clientName:'Example Client Ltd',projectTitle:'Corporate Restructure',documentType:'Steps Plan',subtitle:'Detailed Steps Plan',date:'25 July 2026',version:'v1',adviser:'UBTA Accountants Ltd',status:'Draft'},sections:[{id:'scope',title:'Scope of works',blocks:[{id:'scope-h',type:'heading',level:2,runs:[{text:'Purpose and scope'}]},{id:'scope-p1',type:'paragraph',runs:[{text:'This plan outlines the principal implementation steps for a proposed corporate restructure.'}]},{id:'scope-p2',type:'paragraph',runs:[{text:'Figures and legal mechanics marked for review require completion before finalisation.',highlight:true}]},{id:'scope-list',type:'bulletList',items:[{id:'si1',level:1,runs:[{text:'Confirm commercial objectives'}]},{id:'si2',level:2,runs:[{text:'Review supporting records'}]},{id:'si3',level:1,runs:[{text:'Consult the ',link:null},{text:'HMRC guidance',link:{href:'https://www.gov.uk/government/organisations/hm-revenue-customs'}}]}]}]}],steps:[{id:'share-restructure',title:'Implement the corporate share restructure',blocks:[{id:'step-h',type:'heading',level:2,runs:[{text:'Implementation'}]},{id:'step-p1',type:'paragraph',runs:[{text:'The directors will approve the proposed corporate restructure and authorise the required documentation.'}]},{id:'step-p2',type:'paragraph',runs:[{text:'Professional advisers should confirm the sequence immediately before implementation.'}]},{id:'step-list',type:'numberList',items:[{id:'st1',level:1,runs:[{text:'Prepare board minutes and resolutions.'}]},{id:'st2',level:2,runs:[{text:'Check company records and statutory filings.'}]},{id:'st3',level:1,runs:[{text:'Complete and retain the signed documents.'}]}]}]}]});
+const SCHEMA_VERSION = 2;
+const IMAGE_MIME_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
+const safeHref = href => {
+  if (typeof href !== 'string') return null;
+  return /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*)/i.test(href) ? href : null;
+};
+
+const safeImageSource = source => {
+  if (typeof source !== 'string') return null;
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/]+={0,2})$/i.exec(source);
+  if (!match || !IMAGE_MIME_TYPES.includes(match[1].toLowerCase())) return null;
+  return source;
+};
+
+const newId = prefix => `${prefix}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
+const validId = value => typeof value === 'string' && /^[A-Za-z][\w-]*$/.test(value);
+const makeId = (value, prefix = 'id', used) => {
+  let result = validId(value) ? value : newId(prefix);
+  if (used) {
+    while (used.has(result)) result = newId(prefix);
+    used.add(result);
+  }
+  return result;
+};
+const text = value => String(value ?? '');
+const bounded = (value, minimum, maximum, fallback) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(maximum, Math.max(minimum, number)) : fallback;
+};
+
+function normaliseRuns(runs) {
+  return (Array.isArray(runs) ? runs : [])
+    .map(run => ({
+      text: text(run?.text),
+      highlight: run?.highlight === true,
+      link: safeHref(run?.link?.href) ? {href: safeHref(run.link.href)} : null,
+    }))
+    .filter(run => run.text)
+    .reduce((result, run) => {
+      const previous = result.at(-1);
+      if (previous && previous.highlight === run.highlight && previous.link?.href === run.link?.href) previous.text += run.text;
+      else result.push(run);
+      return result;
+    }, []);
+}
+
+const normaliseWidths = columns => {
+  if (!columns.length) return [];
+  const widths = columns.map(column => bounded(column?.width, 1, 100, 100 / columns.length));
+  const sum = widths.reduce((total, width) => total + width, 0);
+  const normalised = widths.map(width => Number((width * 100 / sum).toFixed(6)));
+  normalised[normalised.length - 1] = Number((100 - normalised.slice(0, -1).reduce((total, width) => total + width, 0)).toFixed(6));
+  return normalised;
+};
+
+const normaliseRow = (row, used) => ({
+  id: makeId(row?.id, 'row', used),
+  cells: (Array.isArray(row?.cells) ? row.cells : []).map(cell => ({
+    id: makeId(cell?.id, 'cell', used),
+    runs: normaliseRuns(cell?.runs),
+  })),
+});
+
+function normaliseBlock(block, usedIds = new Set()) {
+  const allowed = ['heading', 'paragraph', 'bulletList', 'numberList', 'table', 'image'];
+  const type = allowed.includes(block?.type) ? block.type : 'paragraph';
+  const out = {id: makeId(block?.id, type === 'image' ? 'image' : 'block', usedIds), type};
+
+  if (type === 'heading') {
+    out.level = bounded(block.level, 1, 4, 1);
+    out.runs = normaliseRuns(block.runs);
+  } else if (type === 'paragraph') {
+    out.runs = normaliseRuns(block.runs);
+  } else if (type === 'bulletList' || type === 'numberList') {
+    out.items = (Array.isArray(block.items) ? block.items : []).map(item => ({
+      id: makeId(item?.id, 'item'),
+      level: bounded(item?.level, 1, 3, 1),
+      runs: normaliseRuns(item?.runs),
+    }));
+  } else if (type === 'table') {
+    const sourceColumns = Array.isArray(block.columns) ? block.columns : [];
+    const widths = normaliseWidths(sourceColumns);
+    out.columns = sourceColumns.map((column, index) => ({
+      id: makeId(column?.id, 'column'),
+      width: widths[index],
+      alignment: ['left', 'centre', 'right'].includes(column?.alignment) ? column.alignment : 'left',
+    }));
+    out.headerRows = (Array.isArray(block.headerRows) ? block.headerRows : []).map(row => normaliseRow(row, usedIds));
+    out.rows = (Array.isArray(block.rows) ? block.rows : []).map(row => normaliseRow(row, usedIds));
+    out.footerRows = (Array.isArray(block.footerRows) ? block.footerRows : []).map(row => normaliseRow(row, usedIds));
+    const columnIds = new Set(out.columns.map(column => column.id));
+    out.totals = {
+      enabled: block?.totals?.enabled === true,
+      label: text(block?.totals?.label),
+      columns: [...new Set(Array.isArray(block?.totals?.columns) ? block.totals.columns.filter(columnId => columnIds.has(columnId)) : [])],
+    };
+  } else {
+    const source = safeImageSource(block.source);
+    const sourceMime = source?.slice(5, source.indexOf(';')).toLowerCase() || null;
+    const mimeType = IMAGE_MIME_TYPES.includes(String(block.mimeType).toLowerCase()) ? String(block.mimeType).toLowerCase() : sourceMime;
+    out.source = source && mimeType === sourceMime ? source : null;
+    out.mimeType = out.source ? mimeType : null;
+    out.intrinsicWidth = bounded(block.intrinsicWidth, 1, 100000, 1);
+    out.intrinsicHeight = bounded(block.intrinsicHeight, 1, 100000, 1);
+    out.renderedWidth = bounded(block.renderedWidth, 1, 100, 100);
+    out.alignment = ['left', 'centre', 'right'].includes(block.alignment) ? block.alignment : 'centre';
+    out.altText = text(block.altText);
+    out.captionRuns = normaliseRuns(block.captionRuns);
+  }
+  return out;
+}
+
+function migrateDocument(document) {
+  const input = document && typeof document === 'object' ? structuredClone(document) : {};
+  const version = input.schemaVersion ?? 1;
+  if (version !== 1 && version !== SCHEMA_VERSION) throw Error('Unsupported schema version');
+  if (version === 1) {
+    input.steps = (Array.isArray(input.steps) ? input.steps : []).map(step => ({
+      ...step,
+      summary: step.summary ?? '',
+      proposal: step.proposal ?? null,
+    }));
+    input.derivedContent = input.derivedContent ?? {transactionProposals: {automatic: true, sectionId: null}};
+    input.schemaVersion = SCHEMA_VERSION;
+  }
+  return input;
+}
+
+function normaliseDocument(document) {
+  const input = migrateDocument(document);
+  const usedIds = new Set();
+  const meta = {};
+  for (const key of ['clientName', 'projectTitle', 'documentType', 'date', 'version', 'subtitle', 'adviser', 'status']) meta[key] = text(input.meta?.[key]);
+  const sections = (Array.isArray(input.sections) ? input.sections : []).map(section => ({
+    id: makeId(section?.id, 'section', usedIds),
+    title: text(section?.title),
+    blocks: (Array.isArray(section?.blocks) ? section.blocks : []).map(block => normaliseBlock(block, usedIds)),
+  }));
+  const steps = (Array.isArray(input.steps) ? input.steps : []).map(step => ({
+    id: makeId(step?.id, 'step', usedIds),
+    title: text(step?.title),
+    summary: text(step?.summary),
+    proposal: step?.proposal == null ? null : text(step.proposal),
+    blocks: (Array.isArray(step?.blocks) ? step.blocks : []).map(block => normaliseBlock(block, usedIds)),
+  }));
+  const sectionIds = new Set(sections.map(section => section.id));
+  const configuredSection = input.derivedContent?.transactionProposals?.sectionId;
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    meta,
+    derivedContent: {
+      transactionProposals: {
+        automatic: input.derivedContent?.transactionProposals?.automatic !== false,
+        sectionId: sectionIds.has(configuredSection) ? configuredSection : null,
+      },
+    },
+    sections,
+    steps,
+  };
+}
+
+function validateDocument(document) {
+  return normaliseDocument(document);
+}
+
+const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLzWQAAAABJRU5ErkJggg==';
+const seedDocument = normaliseDocument({
+  schemaVersion: SCHEMA_VERSION,
+  meta: {clientName: 'Example Client Ltd', projectTitle: 'Corporate Restructure', documentType: 'Steps Plan', subtitle: 'Detailed Steps Plan', date: '25 July 2026', version: 'v2', adviser: 'UBTA Accountants Ltd', status: 'Draft'},
+  derivedContent: {transactionProposals: {automatic: true, sectionId: 'transaction-proposals'}},
+  sections: [
+    {id: 'scope', title: 'Scope of works', blocks: [
+      {id: 'scope-h', type: 'heading', level: 2, runs: [{text: 'Purpose and scope'}]},
+      {id: 'scope-p1', type: 'paragraph', runs: [{text: 'This plan outlines the principal implementation steps for a proposed corporate restructure.'}]},
+      {id: 'consideration-table', type: 'table', columns: [{id: 'description', width: 70}, {id: 'amount', width: 30, alignment: 'right'}], headerRows: [{id: 'consideration-head', cells: [{id: 'description-head', runs: [{text: 'Description'}]}, {id: 'amount-head', runs: [{text: 'Amount'}]}]}], rows: [{id: 'cash-row', cells: [{id: 'cash-label', runs: [{text: 'Cash consideration'}]}, {id: 'cash-value', runs: [{text: '£100,000'}]}]}], footerRows: [], totals: {enabled: true, label: 'Total consideration', columns: ['amount']}},
+      {id: 'structure-image', type: 'image', source: pixel, mimeType: 'image/png', intrinsicWidth: 1, intrinsicHeight: 1, renderedWidth: 60, alignment: 'centre', altText: 'Illustrative group structure', captionRuns: [{text: 'Illustrative post-transaction structure.'}]},
+    ]},
+    {id: 'transaction-proposals', title: 'Transaction Proposals', blocks: [{id: 'proposal-intro', type: 'paragraph', runs: [{text: 'Proposals are generated from the explicit step data below.'}]}]},
+  ],
+  steps: [
+    {id: 'share-restructure', title: 'Implement the corporate share restructure', summary: 'Approve and document the share restructure.', proposal: 'The company will reorganise its existing share capital.', blocks: [{id: 'step-p1', type: 'paragraph', runs: [{text: 'The directors will approve the proposed corporate restructure and authorise the required documentation.'}]}]},
+    {id: 'statutory-filings', title: 'Complete statutory filings', summary: 'File the approved changes with Companies House.', proposal: null, blocks: [{id: 'step-p2', type: 'paragraph', runs: [{text: 'Submit all required forms after completion.'}]}]},
+  ],
+});
 
 class History{constructor(value){this.past=[];this.future=[];this.value=value}commit(value){this.past.push(structuredClone(this.value));this.value=value;this.future=[]}undo(){if(!this.past.length)return this.value;this.future.push(structuredClone(this.value));return this.value=this.past.pop()}redo(){if(!this.future.length)return this.value;this.past.push(structuredClone(this.value));return this.value=this.future.pop()}}
 
@@ -25,7 +202,7 @@ function sheet(kind){const x=document.createElement('section');x.className=`shee
 function footer(x,n,total){const f=document.createElement('footer');f.className='page-footer';f.textContent=`Page ${n} of ${total}`;x.append(f)}
 function runsHTML(runs){return runs.map(r=>{let t=escapeHTML(r.text);if(r.link)t=`<a href="${escapeHTML(r.link.href)}" target="_blank" rel="noopener">${t}</a>`;return r.highlight?`<mark>${t}</mark>`:t}).join('')}
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function editable(block){const el=document.createElement('div');el.className='editable-block';el.dataset.blockId=block.id;el.dataset.type=block.type;el.dataset.level=block.level||'';el.contentEditable='true';el.lang='en-GB';el.spellcheck=true;if(block.type==='heading')el.innerHTML=runsHTML(block.runs);else if(block.type==='paragraph')el.innerHTML=runsHTML(block.runs);else{el.classList.add('list-block');el.dataset.listType=block.type;el.innerHTML=block.items.map(i=>`<div class="list-item" data-item-id="${i.id}" data-level="${i.level}" style="list-style-type:${block.type==='numberList'?'decimal':'disc'}">${runsHTML(i.runs)}</div>`).join('')}return el}
+function editable(block){const el=document.createElement('div');el.className='editable-block';el.dataset.blockId=block.id;el.dataset.type=block.type;el.dataset.level=block.level||'';el.contentEditable=!['table','image'].includes(block.type);el.lang='en-GB';el.spellcheck=true;if(block.type==='heading')el.innerHTML=runsHTML(block.runs);else if(block.type==='paragraph')el.innerHTML=runsHTML(block.runs);else if(block.type.endsWith('List')){el.classList.add('list-block');el.dataset.listType=block.type;el.innerHTML=block.items.map(i=>`<div class="list-item" data-item-id="${i.id}" data-level="${i.level}" style="list-style-type:${block.type==='numberList'?'decimal':'disc'}">${runsHTML(i.runs)}</div>`).join('')}else if(block.type==='table'){const rows=[...block.headerRows,...block.rows,...block.footerRows];el.classList.add('structured-block');el.innerHTML=`<table><colgroup>${block.columns.map(c=>`<col style="width:${c.width}%">`).join('')}</colgroup>${rows.map((r,i)=>`<tr>${r.cells.map(c=>`<${i<block.headerRows.length?'th':'td'}>${runsHTML(c.runs)}</${i<block.headerRows.length?'th':'td'}>`).join('')}</tr>`).join('')}</table>`}else{el.classList.add('structured-block','image-block');el.innerHTML=block.source?`<img src="${block.source}" width="${block.intrinsicWidth}" height="${block.intrinsicHeight}" style="width:${block.renderedWidth}%" class="align-${block.alignment}" alt="${escapeHTML(block.altText)}"><p class="image-caption">${runsHTML(block.captionRuns)}</p>`:''}return el}
 function cover(){const s=sheet('cover');const m=state.meta;s.insertAdjacentHTML('beforeend',`<div class="cover-kicker">${escapeHTML(m.documentType)} · ${escapeHTML(m.status)}</div><h1>${escapeHTML(m.clientName)}</h1><h2>${escapeHTML(m.projectTitle)} — ${escapeHTML(m.subtitle)}</h2><dl class="meta-grid"><dt>Document</dt><dd>${escapeHTML(m.documentType)}</dd><dt>Date</dt><dd>${escapeHTML(m.date)}</dd><dt>Version</dt><dd>${escapeHTML(m.version)}</dd><dt>Adviser</dt><dd>${escapeHTML(m.adviser)}</dd><dt>Status</dt><dd>${escapeHTML(m.status)}</dd></dl>`);return s}
 function toc(pageMap={}){const s=sheet('contents');let entries=state.sections.map(g=>({g,label:g.title,cls:''})).concat(state.steps.map((g,i)=>({g,label:`Step ${i+1}. ${g.title}`,cls:'toc-step'})));s.insertAdjacentHTML('beforeend',`<h1 class="doc-title">Contents</h1><ol class="toc">${entries.map(e=>`<li class="${e.cls} ${hasReview(e.g)?'toc-review':''}"><a href="#anchor-${e.g.id}">${escapeHTML(e.label)}</a><span class="dots"></span><span class="toc-page">${pageMap[`anchor-${e.g.id}`]||'—'}</span></li>`).join('')}</ol>`);return s}
 function groupSheet(g,title,kind){const s=sheet(kind);s.id=`anchor-${g.id}`;s.tabIndex=-1;s.insertAdjacentHTML('beforeend',kind==='step'?`<div class="step-label">${escapeHTML(title.split('.')[0])}</div><h1 class="section-title">${escapeHTML(title)}</h1>`:`<h1 class="section-title">${escapeHTML(title)}</h1>`);const body=document.createElement('div');body.className='document-body';g.blocks.forEach(b=>body.append(editable(b)));s.append(body);return s}
