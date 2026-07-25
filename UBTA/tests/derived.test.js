@@ -1,0 +1,4 @@
+import test from'node:test';import assert from'node:assert/strict';import{deriveContent,deriveProposals,deriveSteps}from'../src/state/derived.js';import{deleteStep,moveStep}from'../src/state/steps.js';
+const steps=[{id:'a',title:'A',blocks:[{type:'paragraph',runs:[{text:'Auto'}]}]},{id:'b',title:'B',proposal:'Explicit',blocks:[]}];
+test('empty and multiple derived steps',()=>{assert.deepEqual(deriveContent({steps:[]}),{steps:[],proposals:[]});assert.deepEqual(deriveSteps(steps).map(x=>x.number),[1,2]);assert.deepEqual(deriveProposals(steps).map(x=>x.text),['Auto','Explicit'])});
+test('reorder/delete keep stable anchors and renumber',()=>{let d=moveStep({steps},'b',0),x=deriveSteps(d.steps);assert.deepEqual(x.map(v=>[v.id,v.number,v.anchor]),[['b',1,'anchor-b'],['a',2,'anchor-a']]);d=deleteStep(d,'b');assert.deepEqual(deriveSteps(d.steps).map(v=>[v.number,v.anchor]),[[1,'anchor-a']])});

@@ -1,0 +1,4 @@
+import test from'node:test';import assert from'node:assert/strict';import{domToRuns}from'../src/dom-runs.js';const t=v=>({nodeType:3,nodeValue:v}),e=(tag,c=[],a={})=>({tagName:tag,childNodes:c,getAttribute:k=>a[k]});
+test('nested marks and links',()=>assert.deepEqual(domToRuns(e('div',[t('a'),e('mark',[t('b'),e('a',[t('c')],{href:'https://x.test'})])])),[{text:'a',highlight:false,link:null},{text:'b',highlight:true,link:null},{text:'c',highlight:true,link:{href:'https://x.test'}}]));
+test('malicious links retain text without link',()=>assert.deepEqual(domToRuns(e('div',[e('a',[t('safe')],{href:'javascript:x'})])),[{text:'safe',highlight:false,link:null}]));
+test('unsupported dangerous elements are omitted',()=>assert.deepEqual(domToRuns(e('div',[e('span',[t('yes')]),e('script',[t('no')])])),[{text:'yes',highlight:false,link:null}]));test('empty editable content',()=>assert.deepEqual(domToRuns(e('div')),[]));

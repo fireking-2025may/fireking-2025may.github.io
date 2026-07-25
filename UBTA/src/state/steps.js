@@ -1,0 +1,6 @@
+const clone=value=>structuredClone(value);
+const newId=(prefix,steps)=>{let n=1,id;do{id=`${prefix}-${n++}`}while(steps.some(step=>step.id===id));return id};
+export function addStep(document,step={},at=document.steps?.length??0){const next=clone(document),steps=next.steps||(next.steps=[]);const id=step.id&&!steps.some(x=>x.id===step.id)?step.id:newId('step',steps);steps.splice(Math.max(0,Math.min(at,steps.length)),0,{id,title:String(step.title??'New step'),proposal:step.proposal??null,blocks:clone(step.blocks||[])});return next}
+export function duplicateStep(document,id){const index=document.steps.findIndex(step=>step.id===id);if(index<0)return clone(document);const copy=clone(document.steps[index]);copy.id=newId(`${copy.id}-copy`,document.steps);copy.title=`${copy.title} (copy)`;return addStep(document,copy,index+1)}
+export function deleteStep(document,id){const next=clone(document);next.steps=next.steps.filter(step=>step.id!==id);return next}
+export function moveStep(document,id,toIndex){const next=clone(document),index=next.steps.findIndex(step=>step.id===id);if(index<0)return next;const [step]=next.steps.splice(index,1);next.steps.splice(Math.max(0,Math.min(toIndex,next.steps.length)),0,step);return next}
