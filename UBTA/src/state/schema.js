@@ -3,6 +3,14 @@ export const TABLE_WIDTH_MIN = 8;
 export const TABLE_WIDTH_MAX = 92;
 const IDENTIFIER = /^[A-Za-z][\w-]*$/;
 const IMAGE_DATA = /^data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=\s]+$/i;
+export const METADATA_KEYS = ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'];
+export const DOCUMENT_STATUSES = ['Draft', 'For review', 'Final'];
+const isISODate = value => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.valueOf()) && date.getUTCFullYear() === +match[1] && date.getUTCMonth() + 1 === +match[2] && date.getUTCDate() === +match[3];
+};
 
 export const newId = prefix => `${prefix}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
 const makeId = (value, prefix = 'id') => IDENTIFIER.test(value || '') ? value : newId(prefix);
@@ -77,7 +85,12 @@ export function normaliseBlock(block) {
 
 const normaliseGroup = (group, prefix, ensureBlock = false) => ({ id: makeId(group?.id, prefix), title: String(group?.title ?? ''), summary: String(group?.summary ?? ''), blocks: (Array.isArray(group?.blocks) && group.blocks.length ? group.blocks : ensureBlock ? [{ id: newId('block'), type: 'paragraph', runs: [] }] : []).map(normaliseBlock) });
 export function normaliseDocument(document) {
-  const meta = {}; for (const key of ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status']) meta[key] = String(document?.meta?.[key] ?? '');
+  const meta = {}; for (const key of METADATA_KEYS) {
+    const value = document?.meta?.[key];
+    meta[key] = ['string', 'number', 'boolean'].includes(typeof value) ? String(value).trim() : '';
+  }
+  if (meta.date && !isISODate(meta.date)) meta.date = '';
+  if (meta.status && !DOCUMENT_STATUSES.includes(meta.status)) meta.status = '';
   return { schemaVersion: SCHEMA_VERSION, meta, sections: (Array.isArray(document?.sections) ? document.sections : []).map(x => normaliseGroup(x, 'section')), steps: (Array.isArray(document?.steps) ? document.steps : []).map(x => normaliseGroup(x, 'step', true)), appendices: (Array.isArray(document?.appendices) ? document.appendices : []).map(x => normaliseGroup(x, 'appendix')) };
 }
 
@@ -97,4 +110,4 @@ export function validateDocument(document) { if (![1,2,SCHEMA_VERSION].includes(
 const eligibleText = step => [...runContainers(step)].filter(x => (x.kind === 'block' && x.block.type === 'paragraph') || ['listItem','tableCaption','imageCaption'].includes(x.kind)).map(x => x.runs.map(r => r.text).join('').trim()).find(Boolean) || '';
 export function transactionProposals(document) { return normaliseDocument(document).steps.map((step, index) => ({ id:`proposal-${step.id}`, stepId:step.id, title:`Step ${index+1}. ${step.title}`, anchor:stableAnchor(step), summary:step.summary.trim() || eligibleText(step) })); }
 
-export const seedDocument = normaliseDocument({ schemaVersion: SCHEMA_VERSION, meta:{clientName:'Example Client Ltd',projectTitle:'Corporate Restructure',documentType:'Steps Plan',subtitle:'Detailed Steps Plan',date:'25 July 2026',version:'v1',adviser:'UBTA Accountants Ltd',status:'Draft'}, sections:[{id:'scope',title:'Scope of works',blocks:[{id:'scope-h',type:'heading',level:2,runs:[{text:'Purpose and scope'}]},{id:'scope-p1',type:'paragraph',runs:[{text:'This plan outlines the principal implementation steps for a proposed corporate restructure.'}]}]}], steps:[{id:'share-restructure',title:'Implement the corporate share restructure',blocks:[{id:'step-h',type:'heading',level:2,runs:[{text:'Implementation'}]},{id:'step-p1',type:'paragraph',runs:[{text:'The directors will approve the proposed corporate restructure and authorise the required documentation.'}]},{id:'step-list',type:'numberList',items:[{id:'st1',level:1,runs:[{text:'Prepare board minutes and resolutions.'}]}]},{id:'consideration',type:'table',caption:'Illustrative consideration',columns:[{id:'detail',heading:'Detail',width:70},{id:'amount',heading:'Amount (£)',width:30,numeric:true}],rows:[{id:'ordinary-shares',cells:[{runs:[{text:'Ordinary shares'}]},{runs:[{text:'10,000'}]}]},{id:'total',isTotal:true,cells:[{runs:[{text:'Total'}]},{runs:[{text:'10,000'}]}]}]}]}], appendices:[] });
+export const seedDocument = normaliseDocument({ schemaVersion: SCHEMA_VERSION, meta:{clientName:'Example Client Ltd',projectTitle:'Corporate Restructure',documentType:'Steps Plan',subtitle:'Detailed Steps Plan',date:'2026-07-25',version:'v1',adviser:'UBTA Accountants Ltd',status:'Draft'}, sections:[{id:'scope',title:'Scope of works',blocks:[{id:'scope-h',type:'heading',level:2,runs:[{text:'Purpose and scope'}]},{id:'scope-p1',type:'paragraph',runs:[{text:'This plan outlines the principal implementation steps for a proposed corporate restructure.'}]}]}], steps:[{id:'share-restructure',title:'Implement the corporate share restructure',blocks:[{id:'step-h',type:'heading',level:2,runs:[{text:'Implementation'}]},{id:'step-p1',type:'paragraph',runs:[{text:'The directors will approve the proposed corporate restructure and authorise the required documentation.'}]},{id:'step-list',type:'numberList',items:[{id:'st1',level:1,runs:[{text:'Prepare board minutes and resolutions.'}]}]},{id:'consideration',type:'table',caption:'Illustrative consideration',columns:[{id:'detail',heading:'Detail',width:70},{id:'amount',heading:'Amount (£)',width:30,numeric:true}],rows:[{id:'ordinary-shares',cells:[{runs:[{text:'Ordinary shares'}]},{runs:[{text:'10,000'}]}]},{id:'total',isTotal:true,cells:[{runs:[{text:'Total'}]},{runs:[{text:'10,000'}]}]}]}]}], appendices:[] });
