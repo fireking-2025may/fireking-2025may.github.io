@@ -4,7 +4,14 @@ A client-side, desktop-first prototype for a constrained UBTA landscape steps pl
 
 ## Development
 
-Run `python3 -m http.server 8000 -d src`, then visit `http://localhost:8000`. No application server or network service is used by the editor. Run `npm test` for focused schema and sanitisation tests.
+Run `python3 -m http.server 8000 -d src`, then visit `http://localhost:8000`. No application server or network service is used by the editor.
+
+The test suites are intentionally separate:
+
+* Run `npm run test:schema` for the fast schema, validation, and history unit tests.
+* Run `npm run test:editor` for DOM-oriented editor interaction and regression-fixture tests.
+
+Run `npm test` to execute both suites.
 
 ## Standalone build
 

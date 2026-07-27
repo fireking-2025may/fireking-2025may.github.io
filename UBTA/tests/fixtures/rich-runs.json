@@ -1,0 +1,11 @@
+{
+  "mixedRuns": [
+    {"text":"plain ","highlight":false,"link":null},
+    {"text":"both","highlight":true,"link":{"href":"#anchor-target"}},
+    {"text":" linked","highlight":false,"link":{"href":"https://example.test"}}
+  ],
+  "nestedEditable": {
+    "tag":"div",
+    "children":[{"tag":"mark","children":[{"tag":"a","href":"#anchor-target","children":[{"tag":"span","children":["nested"]}]}]}, {"tag":"div","children":["line two"]}]
+  }
+}
