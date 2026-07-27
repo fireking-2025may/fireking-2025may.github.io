@@ -1,54 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normaliseDocument, normaliseBlock, safeHref, safeImageSrc, seedDocument, transactionProposals, validateDocument } from '../src/state/schema.js';
+import { SCHEMA_VERSION, normaliseDocument, normaliseBlock, normaliseRuns, normaliseTableWidths, safeHref, safeImageSrc, seedDocument, transactionProposals, validateDocument, hasReview, stableAnchor } from '../src/state/schema.js';
+import { History } from '../src/state/history.js';
 
-test('seed satisfies the closed version-two schema', () => {
-  const document = validateDocument(seedDocument);
-  assert.equal(document.schemaVersion, 2);
-  assert.equal(document.sections.length, 1);
-  assert.equal(document.steps.length, 1);
-});
-
-test('unknown formatting and blocks are safely reduced', () => {
-  const block = normaliseBlock({ type: 'script', font: 'Comic Sans', runs: [{ text: 'safe', bold: true, style: 'color:red' }] });
-  assert.deepEqual(block.runs, [{ text: 'safe', highlight: false, link: null }]);
-  assert.equal(block.type, 'paragraph');
-  assert.equal('font' in block, false);
-});
-
-test('links permit only approved protocols', () => {
-  assert.equal(safeHref('javascript:alert(1)'), null);
-  assert.equal(safeHref('https://example.test'), 'https://example.test');
-  assert.equal(safeHref('#anchor-ok'), '#anchor-ok');
-});
-
-test('list nesting is capped at three', () => assert.equal(normaliseBlock({ type: 'bulletList', items: [{ level: 9, runs: [{ text: 'x' }] }] }).items[0].level, 3));
-
-test('tables have stable cells, bounded normalised widths and total rows', () => {
-  const table = normaliseBlock({ id: 'fees', type: 'table', columns: [{ id: 'name', heading: 'Name', width: 3 }, { id: 'fee', heading: 'Fee', width: 7, numeric: true }], rows: [{ id: 'total', isTotal: true, cells: [{ runs: [{ text: 'Total' }] }, { runs: [{ text: '20' }] }] }] });
-  assert.equal(table.columns.reduce((sum, column) => sum + column.width, 0), 100);
-  assert.equal(table.rows[0].isTotal, true);
-  assert.equal(table.rows[0].cells.length, 2);
-  assert.match(table.rows[0].cells[0].id, /^[A-Za-z][\w-]*$/);
-});
-
-test('images accept supported data images and HTTPS only', () => {
-  assert.equal(safeImageSrc('javascript:alert(1)'), null);
-  assert.equal(safeImageSrc('http://example.test/a.png'), null);
-  assert.equal(safeImageSrc('data:image/svg+xml,<svg/>'), null);
-  assert.equal(safeImageSrc('data:image/png;base64,YQ=='), 'data:image/png;base64,YQ==');
-  assert.equal(safeImageSrc('https://example.test/a.png'), 'https://example.test/a.png');
-  assert.throws(() => validateDocument({ schemaVersion: 2, steps: [{ blocks: [{ type: 'image', src: 'https://example.test/a.png', alt: '' }] }] }), /alternative text/);
-});
-
-test('transaction proposals are derived from stable step IDs and anchors', () => {
-  const proposals = transactionProposals(seedDocument);
-  assert.deepEqual(proposals.map(({ id, stepId, anchor }) => ({ id, stepId, anchor })), [{ id: 'proposal-share-restructure', stepId: 'share-restructure', anchor: 'anchor-share-restructure' }]);
-  assert.match(proposals[0].summary, /^The directors/);
-});
-
-test('version one documents migrate without losing their stable IDs', () => {
-  const document = normaliseDocument({ schemaVersion: 1, steps: [{ id: 'existing-step', title: 'Existing', blocks: [] }] });
-  assert.equal(document.schemaVersion, 2);
-  assert.equal(document.steps[0].id, 'existing-step');
-});
+test('seed satisfies current closed schema',()=>assert.equal(validateDocument(seedDocument).schemaVersion,SCHEMA_VERSION));
+test('unknown formatting is reduced and newlines survive',()=>assert.deepEqual(normaliseRuns([{text:'a\r\nb',highlight:true,unknown:1}]),[{text:'a\nb',highlight:true,link:null}]));
+test('links permit approved protocols only',()=>{assert.equal(safeHref('javascript:alert(1)'),null);assert.equal(safeHref('#anchor-ok'),'#anchor-ok');assert.equal(safeHref('https://example.test'),'https://example.test')});
+test('images allow empty alt but require a safe supported source',()=>{assert.equal(safeImageSrc('data:image/png;base64,YQ=='),'data:image/png;base64,YQ==');assert.equal(safeImageSrc('https://example.test/a.png'),'https://example.test/a.png');assert.equal(safeImageSrc('https://example.test/a.svg'),null);const d=validateDocument({schemaVersion:SCHEMA_VERSION,steps:[{blocks:[{type:'image',src:'https://example.test/a.png',alt:''}]}]});assert.equal(d.steps[0].blocks[0].alt,'');assert.throws(()=>validateDocument({schemaVersion:SCHEMA_VERSION,steps:[{blocks:[{type:'image',src:'javascript:x'}]}]}),/safe source/)});
+test('bounded width redistribution handles pathological and malformed widths',()=>{for(const input of [[96.678,87.036,8.385],[1000,1,1],[8,8,84],[92,4,4],[33.333,33.333,33.333],[NaN,-2,Infinity,10]]){const widths=normaliseTableWidths(input,input.length);assert.ok(widths.every(x=>x>=8&&x<=92),String(widths));assert.ok(Math.abs(widths.reduce((a,b)=>a+b,0)-100)<.002,String(widths))}});
+test('tables provide stable matching cells and rich headings/caption',()=>{const b=normaliseBlock({type:'table',caption:'Caption',columns:[{heading:'A'},{heading:'B'}],rows:[{cells:[{runs:[{text:'x'}]}]}]});assert.equal(b.rows[0].cells.length,2);assert.equal(b.captionRuns[0].text,'Caption');assert.equal(b.columns[0].headingRuns[0].text,'A')});
+test('appendices migrate with stable anchors',()=>{const d=normaliseDocument({schemaVersion:2,appendices:[{id:'rates',title:'Rates',blocks:[]}]});assert.equal(d.appendices[0].id,'rates');assert.equal(stableAnchor(d.appendices[0]),'anchor-rates')});
+test('proposal summaries use a trimmed override or first eligible body content',()=>{for(const summary of [undefined,'','   ']){const p=transactionProposals({steps:[{id:'s',summary,blocks:[{type:'heading',runs:[{text:'Heading'}]},{type:'paragraph',runs:[]},{type:'paragraph',runs:[{text:'Fallback'}]}]}]})[0];assert.equal(p.summary,'Fallback')}assert.equal(transactionProposals({steps:[{id:'s',summary:' Deliberate ',blocks:[{type:'paragraph',runs:[{text:'Fallback'}]}]}]})[0].summary,'Deliberate')});
+test('review traversal covers headings, paragraphs, lists, captions, cells, and image captions',()=>{for(const block of [{type:'heading',runs:[{text:'x',highlight:true}]},{type:'paragraph',runs:[{text:'x',highlight:true}]},{type:'bulletList',items:[{runs:[{text:'x',highlight:true}]}]},{type:'table',captionRuns:[{text:'x',highlight:true}],columns:[{heading:'A'}],rows:[]},{type:'table',columns:[{heading:'A'}],rows:[{cells:[{runs:[{text:'x',highlight:true}]}]}]},{type:'image',src:'https://x.test/x.png',captionRuns:[{text:'x',highlight:true}]}])assert.equal(hasReview({blocks:[normaliseBlock(block)]}),true)});
+test('normalisation retains highlight and links together',()=>assert.deepEqual(normaliseRuns([{text:'x',highlight:true,link:{href:'#anchor-a'}}]),[{text:'x',highlight:true,link:{href:'#anchor-a'}}]));
+test('history rejects no-op entries and undo reverses one operation',()=>{const h=new History({x:1});assert.equal(h.commit({x:1}),false);h.commit({x:2});assert.equal(h.past.length,1);assert.deepEqual(h.undo(),{x:1})});
