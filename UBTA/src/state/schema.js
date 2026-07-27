@@ -1,3 +1,5 @@
+import { normaliseStatus } from './workflow.js';
+
 export const SCHEMA_VERSION = 3;
 export const TABLE_WIDTH_MIN = 8;
 export const TABLE_WIDTH_MAX = 92;
@@ -77,7 +79,7 @@ export function normaliseBlock(block) {
 
 const normaliseGroup = (group, prefix, ensureBlock = false) => ({ id: makeId(group?.id, prefix), title: String(group?.title ?? ''), summary: String(group?.summary ?? ''), blocks: (Array.isArray(group?.blocks) && group.blocks.length ? group.blocks : ensureBlock ? [{ id: newId('block'), type: 'paragraph', runs: [] }] : []).map(normaliseBlock) });
 export function normaliseDocument(document) {
-  const meta = {}; for (const key of ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status']) meta[key] = String(document?.meta?.[key] ?? '');
+  const meta = {}; for (const key of ['clientName','projectTitle','documentType','date','version','subtitle','adviser']) meta[key] = String(document?.meta?.[key] ?? ''); meta.status = normaliseStatus(document?.meta?.status);
   return { schemaVersion: SCHEMA_VERSION, meta, sections: (Array.isArray(document?.sections) ? document.sections : []).map(x => normaliseGroup(x, 'section')), steps: (Array.isArray(document?.steps) ? document.steps : []).map(x => normaliseGroup(x, 'step', true)), appendices: (Array.isArray(document?.appendices) ? document.appendices : []).map(x => normaliseGroup(x, 'appendix')) };
 }
 

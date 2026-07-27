@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCHEMA_VERSION, normaliseDocument, normaliseBlock, normaliseRuns, normaliseTableWidths, safeHref, safeImageSrc, seedDocument, transactionProposals, validateDocument, hasReview, stableAnchor } from '../src/state/schema.js';
 import { History } from '../src/state/history.js';
+import { normaliseStatus, workflowTransition } from '../src/state/workflow.js';
 
 test('seed satisfies current closed schema',()=>assert.equal(validateDocument(seedDocument).schemaVersion,SCHEMA_VERSION));
 test('unknown formatting is reduced and newlines survive',()=>assert.deepEqual(normaliseRuns([{text:'a\r\nb',highlight:true,unknown:1}]),[{text:'a\nb',highlight:true,link:null}]));
@@ -15,3 +16,4 @@ test('review traversal covers headings, paragraphs, lists, captions, cells, and 
 test('normalisation retains highlight and links together',()=>assert.deepEqual(normaliseRuns([{text:'x',highlight:true,link:{href:'#anchor-a'}}]),[{text:'x',highlight:true,link:{href:'#anchor-a'}}]));
 test('history rejects no-op entries and undo reverses one operation',()=>{const h=new History({x:1});assert.equal(h.commit({x:1}),false);h.commit({x:2});assert.equal(h.past.length,1);assert.deepEqual(h.undo(),{x:1})});
 test('history checkout detaches mutable editor state from its snapshot',()=>{const h=new History({text:'before'}),draft=h.checkout();draft.text='after';assert.deepEqual(h.value,{text:'before'});assert.equal(h.commit(draft),true);assert.deepEqual(h.undo(),{text:'before'})});
+test('workflow statuses are closed and significant transitions request checkpoints',()=>{assert.equal(normaliseStatus('Unknown'),'Draft');assert.deepEqual(workflowTransition('Draft','In review'),{allowed:true,confirm:false,snapshot:false});assert.equal(workflowTransition('In review','Approved').snapshot,true)});
