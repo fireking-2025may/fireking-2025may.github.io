@@ -1,308 +1,61 @@
-import { seedDocument, normaliseDocument, normaliseRuns, safeHref, safeImageSrc, transactionProposals } from './state/schema.js';
+import { seedDocument, normaliseDocument, normaliseRuns, safeHref, safeImageSrc, transactionProposals, hasReview, newId, stableAnchor } from './state/schema.js';
 import { History } from './state/history.js';
 
-const history = new History(structuredClone(seedDocument));
-let state = history.value;
-let currentPage = 1;
-let timer;
-const $ = selector => document.querySelector(selector);
-const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-const textRuns = runs => runs.map(run => run.text).join('');
+const history = new History(seedDocument); let state = history.value; let currentPage = 1; let renderGeneration = 0;
+export const editorSelection = { activeStepId:null, activeBlockId:null, container:null, row:null, column:null, blockType:null, offsets:null, restoreFocus:false };
+const pending = new Map(); const $ = s => document.querySelector(s); const esc = x => String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const runText = runs => (runs||[]).map(r=>r.text).join('');
+const runsHTML = runs => (runs||[]).map(r=>{let text=esc(r.text).replace(/\n/g,'<br>');if(r.link)text=`<a href="${esc(r.link.href)}">${text}</a>`;return r.highlight?`<mark>${text}</mark>`:text}).join('');
+const editableRuns = (runs, attrs='') => `<span class="editable-runs" contenteditable="true" spellcheck="true" ${attrs}>${runsHTML(runs)}</span>`;
+const allGroups = () => [...state.sections,...state.steps,...state.appendices];
+const findBlock = id => { for(const group of allGroups()){const block=group.blocks.find(x=>x.id===id);if(block)return {group,block};} return {}; };
+const selectedStep = () => state.steps.find(x=>x.id===editorSelection.activeStepId);
 
-function hasReview(group) {
-  return group.blocks.some(block => {
-    const runs = block.runs || block.items?.flatMap(item => item.runs) || block.rows?.flatMap(row => row.cells.flatMap(cell => cell.runs)) || [];
-    return runs.some(run => run.highlight);
-  });
+function header(){const x=document.createElement('header');x.className='page-header';x.innerHTML='<span class="header-brand">UBTA</span><span class="header-details">UBTA Accountants Ltd · Practical tax advice</span>';return x}
+function sheet(kind){const x=document.createElement('section');x.className=`sheet-source ${kind}`;x.append(header());return x}
+function footer(x,n,total){const f=document.createElement('footer');f.className='page-footer';f.textContent=`Page ${n} of ${total}`;x.append(f)}
+function blockElement(block){const x=document.createElement('div');x.className='editable-block';x.dataset.blockId=block.id;x.dataset.type=block.type;x.dataset.level=block.level||'';x.draggable=false;
+  if(['heading','paragraph'].includes(block.type)){x.contentEditable='true';x.spellcheck=true;x.innerHTML=runsHTML(block.runs)}
+  else if(block.type.endsWith('List')){x.classList.add('list-block');x.dataset.listType=block.type;x.innerHTML=block.items.map(i=>`<div class="list-item" contenteditable="true" data-container="item" data-item-id="${i.id}" data-level="${i.level}">${runsHTML(i.runs)}</div>`).join('')}
+  else if(block.type==='table'){x.classList.add('table-block');x.innerHTML=`<table><caption>${editableRuns(block.captionRuns,'data-container="caption"')}</caption><colgroup>${block.columns.map(c=>`<col style="width:${c.width}%">`).join('')}</colgroup><thead><tr>${block.columns.map((c,i)=>`<th>${editableRuns(c.headingRuns,`data-container="heading" data-column="${i}"`)}</th>`).join('')}</tr></thead><tbody>${block.rows.map((r,ri)=>`<tr class="${r.isTotal?'total-row':''}" data-row="${ri}">${r.cells.map((c,ci)=>`<td>${editableRuns(c.runs,`data-container="cell" data-row="${ri}" data-column="${ci}"`)}</td>`).join('')}</tr>`).join('')}</tbody></table>`}
+  else {x.classList.add('image-block');x.innerHTML=block.src?`<figure><img src="${esc(block.src)}" alt="${esc(block.alt||'')}" style="width:${block.width}%"><figcaption>${editableRuns(block.captionRuns,'data-container="image-caption"')}</figcaption></figure>`:'<p class="image-error">Image unavailable.</p>'}
+  x.insertAdjacentHTML('afterbegin','<div class="block-controls" contenteditable="false"><button data-block-move="before" aria-label="Move block before">↑</button><button data-block-move="after" aria-label="Move block after">↓</button></div>');return x
 }
+function groupSheet(group,title,kind){const x=sheet(kind);x.id=stableAnchor(group);x.tabIndex=-1;if(kind==='step'){x.dataset.stepId=group.id;if(group.id===editorSelection.activeStepId)x.classList.add('is-selected');x.innerHTML+=`<div class="step-heading"><div class="step-label">${esc(title.match(/^Step \d+/)?.[0]||'')}</div><input class="step-title" data-step-title="${group.id}" value="${esc(group.title)}"></div>`}else x.innerHTML+=`<h1 class="section-title">${esc(title)}</h1>`;const body=document.createElement('div');body.className='document-body';group.blocks.forEach(b=>body.append(blockElement(b)));x.append(body);return x}
+function cover(){const x=sheet('cover');x.innerHTML+=`<div class="cover-kicker">${esc(state.meta.documentType)} · ${esc(state.meta.status)}</div><h1>${esc(state.meta.clientName)}</h1><h2>${esc(state.meta.projectTitle)}</h2>`;return x}
+function contents(map={}){const x=sheet('contents');const entries=[...state.sections,...state.appendices,...state.steps];x.innerHTML+='<h1 class="doc-title">Contents</h1><ol class="toc">'+entries.map(g=>`<li class="${hasReview(g)?'toc-review':''}"><a href="#${stableAnchor(g)}">${esc(g.title)}</a><span class="dots"></span><span>${map[stableAnchor(g)]||'—'}</span></li>`).join('')+'</ol>';return x}
+function captureSelection(){const el=activeEditable();if(!el)return;const s=getSelection();if(!s.rangeCount||!el.contains(s.anchorNode))return;const r=s.getRangeAt(0),before=document.createRange();before.selectNodeContents(el);before.setEnd(r.startContainer,r.startOffset);editorSelection.offsets=[before.toString().length,before.toString().length+r.toString().length]}
+function restoreSelection(){if(!editorSelection.restoreFocus)return;const el=activeEditable();if(!el)return;el.focus({preventScroll:true});const [start,end]=editorSelection.offsets||[0,0],walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);let pos=0,a,b,n;while(n=walker.nextNode()){if(a==null&&start<=pos+n.length)a=[n,start-pos];if(end<=pos+n.length){b=[n,end-pos];break}pos+=n.length}if(a){const r=document.createRange();r.setStart(...a);r.setEnd(...(b||a));const s=getSelection();s.removeAllRanges();s.addRange(r)}}
+async function render({restore=true}={}){flushAll(false);captureSelection();editorSelection.restoreFocus=restore&&editorSelection.restoreFocus;const generation=++renderGeneration;pending.forEach(x=>clearTimeout(x.timer));pending.clear();const source=document.createElement('main');source.append(cover(),contents(window.__pageMap||{}));state.sections.forEach(g=>source.append(groupSheet(g,g.title,'section')));state.steps.forEach((g,i)=>source.append(groupSheet(g,`Step ${i+1}. ${g.title}`,'step')));state.appendices.forEach(g=>source.append(groupSheet(g,g.title,'appendix')));await new Paged.Previewer().preview(source,[],$('#preview'));if(generation!==renderGeneration)return;const pages=[...$('#preview').children],map={};pages.forEach((p,i)=>{footer(p.querySelector('.sheet-source'),i+1,pages.length);p.querySelectorAll('[id^=anchor-]').forEach(a=>map[a.id]=i+1)});window.__pageMap=map;bindEditing();updateControls();$('#total').textContent=pages.length;restoreSelection()}
 
-function header() {
-  const element = document.createElement('header');
-  element.className = 'page-header';
-  element.setAttribute('aria-label', 'UBTA Accountants report header');
-  element.innerHTML = '<span class="header-brand">UBTA</span><span class="header-details">UBTA Accountants Ltd <b aria-hidden="true">·</b> Practical tax advice</span>';
-  return element;
-}
+function activeEditable(){const id=editorSelection.activeBlockId;if(!id)return editorSelection.activeStepId?document.querySelector(`[data-step-title="${editorSelection.activeStepId}"]`):null;const block=document.querySelector(`[data-block-id="${id}"]`);if(!block)return null;const c=editorSelection.container;if(c==='item')return block.querySelector(`[data-item-id="${editorSelection.itemId}"]`);if(c==='caption')return block.querySelector('[data-container=caption]');if(c==='image-caption')return block.querySelector('[data-container=image-caption]');if(c==='heading')return block.querySelector(`[data-container=heading][data-column="${editorSelection.column}"]`);if(c==='cell')return block.querySelector(`[data-container=cell][data-row="${editorSelection.row}"][data-column="${editorSelection.column}"]`);return block}
+function setActive(target){const step=target.closest('[data-step-id]');if(step)editorSelection.activeStepId=step.dataset.stepId;const block=target.closest('[data-block-id]');editorSelection.activeBlockId=block?.dataset.blockId||null;editorSelection.blockType=block?.dataset.type||null;editorSelection.container=target.dataset.container||(['heading','paragraph'].includes(editorSelection.blockType)?'block':null);editorSelection.itemId=target.dataset.itemId||null;editorSelection.row=target.dataset.row??null;editorSelection.column=target.dataset.column??null;editorSelection.restoreFocus=true;document.querySelectorAll('[data-step-id]').forEach(x=>x.classList.toggle('is-selected',x.dataset.stepId===editorSelection.activeStepId));updateControls()}
+function runsFromElement(el){const out=[];const walk=(n,h=false,l=null)=>{if(n.nodeType===3){out.push({text:n.nodeValue||'',highlight:h,link:l?{href:l}:null});return}if(n.nodeType!==1)return;const tag=n.tagName.toLowerCase();if(tag==='br'){out.push({text:'\n',highlight:h,link:l?{href:l}:null});return}const nh=h||tag==='mark',nl=tag==='a'?(safeHref(n.getAttribute('href'))||l):l;[...n.childNodes].forEach(c=>walk(c,nh,nl));if(['div','p'].includes(tag)&&n.nextSibling&&out.at(-1)?.text?.at(-1)!=='\n')out.push({text:'\n',highlight:h,link:l?{href:l}:null})};[...el.childNodes].forEach(n=>walk(n));return normaliseRuns(out)}
+function syncElement(el, record=true){if(!el?.isConnected)return false;const blockEl=el.closest('[data-block-id]'), found=findBlock(blockEl?.dataset.blockId);if(!found.block)return false;const before=structuredClone(state);const b=found.block,c=el.dataset.container;if(c==='item'){const i=b.items.find(x=>x.id===el.dataset.itemId);if(i)i.runs=runsFromElement(el)}else if(c==='caption')b.captionRuns=runsFromElement(el);else if(c==='image-caption')b.captionRuns=runsFromElement(el);else if(c==='heading')b.columns[+el.dataset.column].headingRuns=runsFromElement(el);else if(c==='cell')b.rows[+el.dataset.row]?.cells[+el.dataset.column]&&(b.rows[+el.dataset.row].cells[+el.dataset.column].runs=runsFromElement(el));else b.runs=runsFromElement(el);state=normaliseDocument(state);if(record)history.commit(state);else history.replace(state);return JSON.stringify(before)!==JSON.stringify(state)}
+function schedule(el){const key=targetKey(el),old=pending.get(key);if(old)clearTimeout(old.timer);const generation=renderGeneration;pending.set(key,{el,timer:setTimeout(()=>{const p=pending.get(key);if(!p||generation!==renderGeneration||p.el!==el||!el.isConnected)return;syncElement(el);pending.delete(key)},450)})}
+const targetKey=el=>[el.closest('[data-block-id]')?.dataset.blockId,el.dataset.container,el.dataset.itemId,el.dataset.row,el.dataset.column].join(':');
+function flushTarget(el,record=true){const key=targetKey(el),p=pending.get(key);if(!p)return;clearTimeout(p.timer);pending.delete(key);if(p.el.isConnected)syncElement(p.el,record)}
+function flushAll(record=true){[...pending.values()].forEach(p=>{clearTimeout(p.timer);if(p.el.isConnected)syncElement(p.el,record)});pending.clear()}
+function commit(mutator,{focus=true}={}){flushAll();const before=structuredClone(state);mutator();state=normaliseDocument(state);history.replace(before);history.commit(state);state=history.value;editorSelection.restoreFocus=focus;return render({restore:focus})}
 
-function sheet(kind) {
-  const element = document.createElement('section');
-  element.className = `sheet-source ${kind}`;
-  element.append(header());
-  return element;
-}
-
-function footer(element, page, total) {
-  const item = document.createElement('footer');
-  item.className = 'page-footer';
-  item.textContent = `Page ${page} of ${total}`;
-  element.append(item);
-}
-
-function runsHTML(runs = []) {
-  return runs.map(run => {
-    let text = escapeHTML(run.text);
-    if (run.link) text = `<a href="${escapeHTML(run.link.href)}" target="_blank" rel="noopener">${text}</a>`;
-    return run.highlight ? `<mark>${text}</mark>` : text;
-  }).join('');
-}
-
-function editableRuns(runs, attributes = '') {
-  return `<span class="editable-runs" contenteditable="true" spellcheck="true" ${attributes}>${runsHTML(runs)}</span>`;
-}
-
-function editable(block) {
-  const element = document.createElement('div');
-  element.className = 'editable-block';
-  element.dataset.blockId = block.id;
-  element.dataset.type = block.type;
-  element.dataset.level = block.level || '';
-  element.lang = 'en-GB';
-
-  if (['heading', 'paragraph'].includes(block.type)) {
-    element.contentEditable = 'true';
-    element.spellcheck = true;
-    element.innerHTML = runsHTML(block.runs);
-  } else if (block.type.endsWith('List')) {
-    element.contentEditable = 'true';
-    element.classList.add('list-block');
-    element.dataset.listType = block.type;
-    element.innerHTML = block.items.map(item => `<div class="list-item" data-item-id="${item.id}" data-level="${item.level}">${runsHTML(item.runs)}</div>`).join('');
-  } else if (block.type === 'table') {
-    element.classList.add('table-block');
-    element.innerHTML = `<table><caption>${editableRuns([{ text: block.caption }], 'data-table-caption')}</caption><colgroup>${block.columns.map(column => `<col style="width:${column.width}%">`).join('')}</colgroup><thead><tr>${block.columns.map((column, index) => `<th scope="col">${editableRuns([{ text: column.heading }], `data-column="${index}"`)}${index < block.columns.length - 1 ? `<button class="column-resizer" data-resize="${index}" aria-label="Resize ${escapeHTML(column.heading)} column" title="Drag to resize column"></button>` : ''}</th>`).join('')}</tr></thead><tbody>${block.rows.map((row, rowIndex) => `<tr class="${row.isTotal ? 'total-row' : ''}" data-row="${rowIndex}">${row.cells.map((cell, columnIndex) => `<td class="${block.columns[columnIndex].numeric ? 'numeric' : ''}">${editableRuns(cell.runs, `data-cell="${columnIndex}"`)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-  } else if (block.type === 'image') {
-    element.classList.add('image-block');
-    element.innerHTML = block.src
-      ? `<figure><img src="${escapeHTML(block.src)}" alt="${escapeHTML(block.alt)}" style="width:${block.width}%"><figcaption>${escapeHTML(block.caption)}</figcaption></figure>`
-      : '<p class="image-error" role="status">Image unavailable. Add a valid HTTPS image or upload an image.</p>';
-  }
-  return element;
-}
-
-function cover() {
-  const element = sheet('cover');
-  const meta = state.meta;
-  element.insertAdjacentHTML('beforeend', `<div class="cover-kicker">${escapeHTML(meta.documentType)} · ${escapeHTML(meta.status)}</div><h1>${escapeHTML(meta.clientName)}</h1><h2>${escapeHTML(meta.projectTitle)} — ${escapeHTML(meta.subtitle)}</h2><dl class="meta-grid"><dt>Document</dt><dd>${escapeHTML(meta.documentType)}</dd><dt>Date</dt><dd>${escapeHTML(meta.date)}</dd><dt>Version</dt><dd>${escapeHTML(meta.version)}</dd><dt>Adviser</dt><dd>${escapeHTML(meta.adviser)}</dd><dt>Status</dt><dd>${escapeHTML(meta.status)}</dd></dl>`);
-  return element;
-}
-
-function contents(pageMap = {}) {
-  const element = sheet('contents');
-  const entries = state.sections.map(group => ({ group, label: group.title, className: '' }))
-    .concat(transactionProposals(state).map(proposal => ({ group: state.steps.find(step => step.id === proposal.stepId), label: proposal.title, className: 'toc-step', anchor: proposal.anchor })));
-  element.insertAdjacentHTML('beforeend', `<h1 class="doc-title">Contents</h1><ol class="toc">${entries.map(entry => { const anchor = entry.anchor || `anchor-${entry.group.id}`; return `<li class="${entry.className} ${hasReview(entry.group) ? 'toc-review' : ''}" data-anchor="${anchor}"><a href="#${anchor}">${escapeHTML(entry.label)}</a><span class="dots"></span><span class="toc-page">${pageMap[anchor] || '—'}</span></li>`; }).join('')}</ol>`);
-  return element;
-}
-
-function groupSheet(group, title, kind) {
-  const element = sheet(kind);
-  element.id = `anchor-${group.id}`;
-  element.tabIndex = -1;
-  const label = kind === 'step' ? title.match(/^Step \d+/)?.[0] : '';
-  element.insertAdjacentHTML('beforeend', kind === 'step' ? `<div class="step-heading"><div class="step-label">${escapeHTML(label)}</div><input class="step-title" data-step-title="${group.id}" value="${escapeHTML(group.title)}" aria-label="${escapeHTML(label)} title"></div>` : `<h1 class="section-title">${escapeHTML(title)}</h1>`);
-  const body = document.createElement('div');
-  body.className = 'document-body';
-  group.blocks.forEach(block => body.append(editable(block)));
-  element.append(body);
-  return element;
-}
-
-async function render() {
-  const source = document.createElement('main');
-  source.append(cover(), contents(window.__pageMap || {}));
-  state.sections.forEach(group => source.append(groupSheet(group, group.title, 'section')));
-  state.steps.forEach((group, index) => source.append(groupSheet(group, `Step ${index + 1}. ${group.title}`, 'step')));
-  const previewer = new Paged.Previewer();
-  const target = $('#preview');
-  await previewer.preview(source, [], target);
-  const pages = [...target.children];
-  const pageMap = {};
-  pages.forEach((page, index) => {
-    footer(page.querySelector('.sheet-source'), index + 1, pages.length);
-    page.dataset.pageNumber = index + 1;
-    page.querySelectorAll('[id^="anchor-"]').forEach(anchor => { pageMap[anchor.id] = index + 1; });
-  });
-  window.__pageMap = pageMap;
-  target.querySelectorAll('.toc li').forEach(item => { item.querySelector('.toc-page').textContent = pageMap[item.dataset.anchor] || '—'; });
-  bindEditing();
-  $('#total').textContent = pages.length;
-  currentPage = Math.min(currentPage, pages.length);
-  $('#current').textContent = currentPage;
-}
-
-function findBlock(id) {
-  for (const group of [...state.sections, ...state.steps]) {
-    const block = group.blocks.find(item => item.id === id);
-    if (block) return block;
-  }
-}
-
-function commit(mutator) {
-  state = structuredClone(state);
-  mutator();
-  state = normaliseDocument(state);
-  history.commit(state);
-  state = history.value;
-  render();
-}
-
-// Translate the browser's small, approved inline vocabulary back into schema runs.
-// Text from all other elements is retained, but unsafe markup and URLs are discarded.
-function runsFromElement(element) {
-  const runs = [];
-  const walk = (node, highlight = false, link = null) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      runs.push({ text: node.nodeValue || '', highlight, link: link ? { href: link } : null });
-      return;
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const tag = node.tagName.toLowerCase();
-    const nextHighlight = highlight || tag === 'mark';
-    const nextLink = tag === 'a' ? safeHref(node.getAttribute('href')) : link;
-    node.childNodes.forEach(child => walk(child, nextHighlight, nextLink));
-  };
-  element.childNodes.forEach(node => walk(node));
-  return normaliseRuns(runs);
-}
-
-function syncBlock(element) {
-  const id = element.dataset.blockId;
-  commit(() => {
-    const block = findBlock(id);
-    if (!block) return;
-    if (block.type.endsWith('List')) {
-      block.items = [...element.querySelectorAll('.list-item')].map((item, index) => ({ id: item.dataset.itemId || `${id}-item-${index}`, level: +item.dataset.level || 1, runs: runsFromElement(item) }));
-    } else if (block.type === 'table') {
-      block.caption = element.querySelector('[data-table-caption]').textContent;
-      element.querySelectorAll('[data-column]').forEach(item => { block.columns[+item.dataset.column].heading = item.textContent; });
-      element.querySelectorAll('[data-row]').forEach(row => row.querySelectorAll('[data-cell]').forEach(cell => { block.rows[+row.dataset.row].cells[+cell.dataset.cell].runs = runsFromElement(cell); }));
-    } else {
-      block.runs = runsFromElement(element);
-    }
-  });
-}
-
-function bindEditing() {
-  document.querySelectorAll('.editable-block').forEach(element => {
-    element.addEventListener('focusin', event => { window.activeBlock = element.dataset.blockId; window.activeEditable = event.target.closest('[contenteditable="true"]'); });
-    element.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => syncBlock(element), 450); });
-    element.addEventListener('paste', event => { if (!event.target.closest('[contenteditable="true"]')) return; event.preventDefault(); document.execCommand('insertText', false, event.clipboardData.getData('text/plain')); });
-    element.addEventListener('keydown', listKeys);
-  });
-  document.querySelectorAll('[data-step-title]').forEach(input => input.addEventListener('change', () => commit(() => { const step = state.steps.find(item => item.id === input.dataset.stepTitle); if (step) step.title = input.value.trim() || 'Untitled step'; })));
-  bindResizers();
-  document.querySelectorAll('.toc a').forEach(anchor => { anchor.onclick = event => { event.preventDefault(); const destination = document.querySelector(anchor.getAttribute('href')); destination?.closest('.pagedjs_page')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); destination?.focus(); }; });
-}
-
-function bindResizers() {
-  document.querySelectorAll('.column-resizer').forEach(handle => {
-    handle.addEventListener('keydown', event => {
-      if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
-      event.preventDefault();
-      const tableBlock = handle.closest('.table-block');
-      const index = +handle.dataset.resize;
-      const delta = event.key === 'ArrowLeft' ? -2 : 2;
-      commit(() => {
-        const block = findBlock(tableBlock.dataset.blockId);
-        if (block.columns[index].width + delta < 10 || block.columns[index + 1].width - delta < 10) return;
-        block.columns[index].width += delta;
-        block.columns[index + 1].width -= delta;
-      });
-    });
-    handle.addEventListener('pointerdown', event => {
-    event.preventDefault();
-    const tableBlock = handle.closest('.table-block');
-    const blockId = tableBlock.dataset.blockId;
-    const index = +handle.dataset.resize;
-    const startX = event.clientX;
-    const block = findBlock(blockId);
-    const start = block.columns.map(column => column.width);
-    const move = moveEvent => {
-      const delta = ((moveEvent.clientX - startX) / tableBlock.offsetWidth) * 100;
-      const amount = Math.max(-start[index] + 10, Math.min(start[index + 1] - 10, delta));
-      const columns = tableBlock.querySelectorAll('col');
-      columns[index].style.width = `${start[index] + amount}%`;
-      columns[index + 1].style.width = `${start[index + 1] - amount}%`;
-    };
-    const up = upEvent => {
-      removeEventListener('pointermove', move);
-      removeEventListener('pointerup', up);
-      const delta = ((upEvent.clientX - startX) / tableBlock.offsetWidth) * 100;
-      commit(() => { const current = findBlock(blockId); const amount = Math.max(-start[index] + 10, Math.min(start[index + 1] - 10, delta)); current.columns[index].width = start[index] + amount; current.columns[index + 1].width = start[index + 1] - amount; });
-    };
-    addEventListener('pointermove', move);
-    addEventListener('pointerup', up, { once: true });
-    });
-  });
-}
-
-function listKeys(event) {
-  const element = event.currentTarget;
-  if (!element.dataset.listType) return;
-  const item = event.target.closest('.list-item');
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    if (!item.textContent.trim()) { commit(() => { const block = findBlock(element.dataset.blockId); block.type = 'paragraph'; block.runs = []; delete block.items; }); return; }
-    const next = document.createElement('div'); next.className = 'list-item'; next.dataset.itemId = `item-${crypto.randomUUID()}`; next.dataset.level = item.dataset.level; next.contentEditable = 'true'; item.after(next); next.focus();
-  }
-}
-
-function selectedOffsets(element) {
-  const selection = getSelection();
-  if (!selection.rangeCount || !element?.contains(selection.anchorNode) || !element.contains(selection.focusNode)) return null;
-  const range = selection.getRangeAt(0);
-  const before = document.createRange(); before.selectNodeContents(element); before.setEnd(range.startContainer, range.startOffset);
-  const start = before.toString().length;
-  return [start, start + range.toString().length];
-}
-
-function runsAt(runs, position) { let count = 0; return runs.find(run => (count += run.text.length) > position) || runs.at(-1) || {}; }
-function transformSelection(kind, value) {
-  const element = window.activeEditable || document.querySelector(`[data-block-id="${window.activeBlock}"]`);
-  const offsets = selectedOffsets(element);
-  if (!offsets || offsets[0] === offsets[1]) return;
-  commit(() => {
-    const block = findBlock(window.activeBlock); if (!block?.runs) return;
-    const text = textRuns(block.runs); const [start, end] = offsets; const current = runsAt(block.runs, start);
-    block.runs = normaliseRuns([{ text: text.slice(0, start) }, { text: text.slice(start, end), highlight: kind === 'highlight' ? !current.highlight : current.highlight, link: kind === 'link' ? { href: value } : kind === 'unlink' ? null : current.link }, { text: text.slice(end) }]);
-  });
-}
-
-function command(action) {
-  const id = window.activeBlock;
-  if (action === 'undo') { state = history.undo(); return render(); }
-  if (action === 'redo') { state = history.redo(); return render(); }
-  if (action === 'addStep') return commit(() => state.steps.push({ id: `step-${crypto.randomUUID()}`, title: 'New transaction step', blocks: [{ id: `block-${crypto.randomUUID()}`, type: 'paragraph', runs: [{ text: 'Describe the transaction step.' }] }] }));
-  if (action === 'moveStepUp' || action === 'moveStepDown' || action === 'deleteStep') return manageStep(action);
-  if (action === 'addImage') return addImage();
-  if (action === 'highlight') return transformSelection('highlight');
-  if (action === 'link') { const href = prompt('Link destination (https:, http:, mailto: or #anchor)'); if (href && safeHref(href)) transformSelection('link', href); else if (href) alert('That link destination is not permitted.'); return; }
-  if (action === 'unlink') return transformSelection('unlink');
-  if (!id) return;
-  commit(() => { const block = findBlock(id); if (!block) return; if (action.startsWith('heading')) { block.type = 'heading'; block.level = +action.at(-1); block.runs ||= block.items?.flatMap(item => item.runs) || []; } else if (action === 'body') { block.type = 'paragraph'; block.runs ||= block.items?.flatMap(item => item.runs) || []; } else if (['bulletList', 'numberList'].includes(action)) { const runs = block.runs || [{ text: 'List item' }]; block.type = action; block.items = [{ id: `${id}-item`, level: 1, runs }]; delete block.runs; } });
-}
-
-function activeStepIndex() { return state.steps.findIndex(step => step.blocks.some(block => block.id === window.activeBlock)); }
-function manageStep(action) {
-  const index = activeStepIndex();
-  if (index < 0) return;
-  commit(() => { if (action === 'deleteStep') state.steps.splice(index, 1); else { const target = action === 'moveStepUp' ? index - 1 : index + 1; if (target >= 0 && target < state.steps.length) [state.steps[index], state.steps[target]] = [state.steps[target], state.steps[index]]; } });
-}
-
-function addImage() {
-  const input = $('#image-upload');
-  input.value = '';
-  input.onchange = () => {
-    const file = input.files[0]; if (!file || !/^image\/(png|jpeg|gif|webp)$/.test(file.type) || file.size > 5_000_000) { alert('Choose a PNG, JPEG, GIF or WebP image smaller than 5 MB.'); return; }
-    const alt = prompt('Describe the image for people who cannot see it:')?.trim(); if (!alt) { alert('Alternative text is required.'); return; }
-    const reader = new FileReader(); reader.onload = () => { if (!safeImageSrc(reader.result)) return; const index = Math.max(0, activeStepIndex()); commit(() => state.steps[index].blocks.push({ id: `image-${crypto.randomUUID()}`, type: 'image', src: reader.result, alt, caption: '', width: 100 })); }; reader.readAsDataURL(file);
-  };
-  input.click();
-}
-
-document.querySelectorAll('[data-command]').forEach(button => { button.onclick = () => command(button.dataset.command); });
-$('#style').onchange = event => command(event.target.value);
-function go(page) { const pages = [...document.querySelectorAll('.pagedjs_page')]; currentPage = Math.max(1, Math.min(pages.length, page)); $('#current').textContent = currentPage; pages[currentPage - 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-$('#prev').onclick = () => go(currentPage - 1); $('#next').onclick = () => go(currentPage + 1);
-addEventListener('keydown', event => { if (event.altKey && event.key === 'ArrowLeft') go(currentPage - 1); if (event.altKey && event.key === 'ArrowRight') go(currentPage + 1); });
-render();
+function bindEditing(){document.querySelectorAll('[data-step-id]').forEach(x=>x.addEventListener('pointerdown',e=>{if(!e.target.closest('button'))setActive(e.target)}));document.querySelectorAll('[contenteditable=true],.step-title').forEach(el=>{el.addEventListener('focusin',()=>setActive(el));el.addEventListener('input',()=>schedule(el));el.addEventListener('blur',()=>{flushTarget(el);editorSelection.restoreFocus=false;setTimeout(()=>render({restore:false}),0)});el.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))})});
+ document.querySelectorAll('.step-title').forEach(el=>{el.addEventListener('input',()=>{});el.addEventListener('change',()=>{const step=state.steps.find(x=>x.id===el.dataset.stepTitle);if(step){step.title=el.value.trim()||'Untitled step';history.commit(state)}});el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur()}else if(e.key==='Tab')editorSelection.restoreFocus=false})});
+ document.querySelectorAll('.list-item').forEach(el=>el.addEventListener('keydown',listEnter));document.querySelectorAll('[data-container=cell]').forEach(el=>el.addEventListener('keydown',tableTab));document.querySelectorAll('[data-block-move]').forEach(b=>b.onclick=()=>moveBlock(b.closest('[data-block-id]').dataset.blockId,b.dataset.blockMove));document.querySelectorAll('.toc a').forEach(a=>a.onclick=e=>{e.preventDefault();document.querySelector(a.getAttribute('href'))?.focus()})}
+function listEnter(e){if(e.key!=='Enter')return;e.preventDefault();const el=e.currentTarget;flushTarget(el);const {block}=findBlock(el.closest('[data-block-id]').dataset.blockId),index=block.items.findIndex(i=>i.id===el.dataset.itemId);const offsets=getOffsets(el),text=runText(block.items[index].runs);if(!text.trim()){commit(()=>{block.items.splice(index,1);if(!block.items.length){block.type='paragraph';block.runs=[];delete block.items}});return}const id=newId('item');commit(()=>{const item=block.items[index];item.runs=[{text:text.slice(0,offsets[0])}];block.items.splice(index+1,0,{id,level:item.level,runs:[{text:text.slice(offsets[0])}]});editorSelection.itemId=id;editorSelection.offsets=[0,0]})}
+function tableTab(e){if(e.key!=='Tab')return;const cells=[...document.querySelectorAll(`[data-block-id="${editorSelection.activeBlockId}"] [data-container=cell]`)],i=cells.indexOf(e.currentTarget);if(e.shiftKey||i<cells.length-1)return;e.preventDefault();flushTarget(e.currentTarget);const {block}=findBlock(editorSelection.activeBlockId),ordinary=block.rows.map((r,i)=>!r.isTotal?i:-1).filter(i=>i>=0),insert=(ordinary.at(-1)??-1)+1,rowId=newId('row');commit(()=>{block.rows.splice(insert,0,{id:rowId,isTotal:false,cells:block.columns.map(()=>({id:newId('cell'),runs:[]}))});editorSelection.row=insert;editorSelection.column=0;editorSelection.offsets=[0,0]})}
+const getOffsets=el=>{const s=getSelection();if(!s.rangeCount)return[0,0];const r=s.getRangeAt(0),b=document.createRange();b.selectNodeContents(el);b.setEnd(r.startContainer,r.startOffset);return[b.toString().length,b.toString().length+r.toString().length]};
+function resolveRuns(){const {block}=findBlock(editorSelection.activeBlockId);if(!block)return null;if(editorSelection.container==='block')return block.runs;if(editorSelection.container==='item')return block.items.find(x=>x.id===editorSelection.itemId)?.runs;if(editorSelection.container==='caption'||editorSelection.container==='image-caption')return block.captionRuns;if(editorSelection.container==='heading')return block.columns[editorSelection.column]?.headingRuns;if(editorSelection.container==='cell')return block.rows[editorSelection.row]?.cells[editorSelection.column]?.runs;return null}
+function replaceResolved(runs){const {block}=findBlock(editorSelection.activeBlockId);if(editorSelection.container==='block')block.runs=runs;else if(editorSelection.container==='item')block.items.find(x=>x.id===editorSelection.itemId).runs=runs;else if(['caption','image-caption'].includes(editorSelection.container))block.captionRuns=runs;else if(editorSelection.container==='heading')block.columns[editorSelection.column].headingRuns=runs;else if(editorSelection.container==='cell')block.rows[editorSelection.row].cells[editorSelection.column].runs=runs}
+function transformSelection(kind,value){flushAll();const el=activeEditable();if(el)editorSelection.offsets=getOffsets(el);const offsets=editorSelection.offsets,runs=resolveRuns();if(!runs||!offsets||offsets[0]===offsets[1])return;const [start,end]=offsets;let pos=0,middle=[];for(const run of runs){const a=Math.max(start,pos),b=Math.min(end,pos+run.text.length);if(pos<a)middle.push({...run,text:run.text.slice(0,a-pos)});if(b>a){const part={...run,text:run.text.slice(a-pos,b-pos)};if(kind==='highlight')part.highlight=!runs.filter((r,i)=>{const rs=runs.slice(0,i).reduce((s,x)=>s+x.text.length,0);return rs<end&&rs+r.text.length>start}).every(r=>r.highlight);if(kind==='link')part.link={href:value};if(kind==='unlink')part.link=null;middle.push(part)}if(b<pos+run.text.length)middle.push({...run,text:run.text.slice(b-pos)});pos+=run.text.length}commit(()=>replaceResolved(normaliseRuns(middle)))}
+function insertBlock(type){const step=selectedStep();if(!step)return;const active=step.blocks.findIndex(x=>x.id===editorSelection.activeBlockId),index=active<0?step.blocks.length:active+1,id=newId('block');let block={id,type,runs:[]};if(type.endsWith('List'))block={id,type,items:[{id:newId('item'),level:1,runs:[]}]};if(type==='table')block={id,type,captionRuns:[{text:'Table caption'}],columns:[{id:newId('column'),headingRuns:[{text:'Column 1'}],width:50},{id:newId('column'),headingRuns:[{text:'Column 2'}],width:50}],rows:[{id:newId('row'),cells:[{id:newId('cell'),runs:[]},{id:newId('cell'),runs:[]}]}]};commit(()=>{step.blocks.splice(index,0,block);editorSelection.activeBlockId=id;editorSelection.blockType=type;editorSelection.container=type==='table'?'cell':type.endsWith('List')?'item':'block';editorSelection.row=0;editorSelection.column=0;editorSelection.itemId=block.items?.[0]?.id;editorSelection.offsets=[0,0]})}
+function moveBlock(id,direction){const {group}=findBlock(id);if(!group)return;const i=group.blocks.findIndex(x=>x.id===id),j=direction==='before'?i-1:i+1;if(j<0||j>=group.blocks.length)return;commit(()=>{[group.blocks[i],group.blocks[j]]=[group.blocks[j],group.blocks[i]];editorSelection.activeBlockId=id;announce(`Block moved to position ${j+1}`)})}
+function manageStep(action){flushAll();const index=state.steps.findIndex(x=>x.id===editorSelection.activeStepId);if(index<0)return;if(action==='deleteStep'){if(state.steps.length===1)return;const step=state.steps[index];if(!confirm(`Delete Step ${index+1}: ${step.title}?`))return;return commit(()=>{state.steps.splice(index,1);editorSelection.activeStepId=state.steps[Math.min(index,state.steps.length-1)]?.id||null;editorSelection.activeBlockId=null;announce('Step deleted')})}const target=index+(action==='moveStepUp'?-1:1);if(target<0||target>=state.steps.length)return;commit(()=>{[state.steps[index],state.steps[target]]=[state.steps[target],state.steps[index]];announce(`Step moved to position ${target+1}`)})}
+function addStep(where='after'){const index=state.steps.findIndex(x=>x.id===editorSelection.activeStepId);if(index<0)return;const id=newId('step'),blockId=newId('block'),at=index+(where==='after'?1:0);commit(()=>{state.steps.splice(at,0,{id,title:'New transaction step',blocks:[{id:blockId,type:'paragraph',runs:[]}]});editorSelection.activeStepId=id;editorSelection.activeBlockId=blockId;editorSelection.container='block';editorSelection.blockType='paragraph';editorSelection.offsets=[0,0]})}
+function tableMutation(action){const {block}=findBlock(editorSelection.activeBlockId);if(block?.type!=='table')return;if(action==='addRow')commit(()=>{const at=block.rows.findIndex(r=>r.isTotal);block.rows.splice(at<0?block.rows.length:at,0,{id:newId('row'),cells:block.columns.map(()=>({id:newId('cell'),runs:[]}))})});if(action==='addColumn')commit(()=>{block.columns.push({id:newId('column'),headingRuns:[{text:`Column ${block.columns.length+1}`}],width:100/(block.columns.length+1)});block.rows.forEach(r=>r.cells.push({id:newId('cell'),runs:[]}))}) ;if(action==='removeRow'&&block.rows.length)commit(()=>block.rows.splice(Math.max(0,+editorSelection.row),1));if(action==='removeColumn'&&block.columns.length>1)commit(()=>{const i=Math.max(0,+editorSelection.column);block.columns.splice(i,1);block.rows.forEach(r=>r.cells.splice(i,1))})}
+function linkPicker(){captureSelection();const dialog=$('#link-picker'),list=$('#link-destination');list.innerHTML=[...state.steps,...state.appendices].map(x=>`<option value="#${stableAnchor(x)}">${esc(x.title||'Untitled')}</option>`).join('');dialog.showModal()}
+function addImage(){if(!selectedStep())return;const input=$('#image-upload');input.value='';input.onchange=()=>{const file=input.files[0];if(!file||!/^image\/(png|jpeg|gif|webp)$/.test(file.type)||file.size>5e6)return alert('Choose a PNG, JPEG, GIF or WebP image smaller than 5 MB.');const reader=new FileReader();reader.onload=()=>{if(!safeImageSrc(reader.result))return;const step=selectedStep(),id=newId('image'),at=Math.max(0,step.blocks.findIndex(x=>x.id===editorSelection.activeBlockId)+1);commit(()=>{step.blocks.splice(at,0,{id,type:'image',src:reader.result,alt:'',captionRuns:[],width:100});editorSelection.activeBlockId=id;editorSelection.blockType='image';editorSelection.container=null})};reader.readAsDataURL(file)};input.click()}
+function command(action){flushAll();if(action==='undo'||action==='redo'){pending.forEach(x=>clearTimeout(x.timer));pending.clear();state=action==='undo'?history.undo():history.redo();if(!state.steps.some(x=>x.id===editorSelection.activeStepId))editorSelection.activeStepId=state.steps[0]?.id||null;return render()}if(action==='addStepBefore'||action==='addStepAfter')return addStep(action.endsWith('After')?'after':'before');if(['moveStepUp','moveStepDown','deleteStep'].includes(action))return manageStep(action);if(action.startsWith('add')&&action!=='addImage')return insertBlock({addParagraph:'paragraph',addHeading:'heading',addBulletList:'bulletList',addNumberList:'numberList',addTable:'table'}[action]);if(action==='addImage')return addImage();if(['addRow','removeRow','addColumn','removeColumn'].includes(action))return tableMutation(action);if(action==='highlight'||action==='unlink')return transformSelection(action==='unlink'?'unlink':'highlight');if(action==='link')return linkPicker();if(editorSelection.blockType==='image')return;const {block}=findBlock(editorSelection.activeBlockId);if(!block||!['heading','paragraph','bulletList','numberList'].includes(block.type))return;if(action.startsWith('heading')||action==='body'||['bulletList','numberList'].includes(action))commit(()=>{if(action.startsWith('heading')){block.type='heading';block.level=+action.at(-1);block.runs=block.runs||block.items?.flatMap(i=>i.runs)||[]}else if(action==='body'){block.type='paragraph';block.runs=block.runs||block.items?.flatMap(i=>i.runs)||[]}else{block.items=block.items||[{id:newId('item'),level:1,runs:block.runs||[]}];block.type=action;delete block.runs}})}
+function announce(message){$('#editor-status').textContent='';requestAnimationFrame(()=>$('#editor-status').textContent=message)}
+function updateControls(){const i=state.steps.findIndex(x=>x.id===editorSelection.activeStepId),step=i>=0;document.querySelectorAll('[data-command=moveStepUp]').forEach(x=>x.disabled=!step||i===0);document.querySelectorAll('[data-command=moveStepDown]').forEach(x=>x.disabled=!step||i===state.steps.length-1);document.querySelectorAll('[data-command=deleteStep]').forEach(x=>x.disabled=!step||state.steps.length===1);document.querySelectorAll('[data-requires-step]').forEach(x=>x.disabled=!step);const text=!!resolveRuns();document.querySelectorAll('[data-text-command]').forEach(x=>x.disabled=!text);const {block}=findBlock(editorSelection.activeBlockId);document.querySelectorAll('[data-table-command]').forEach(x=>x.hidden=block?.type!=='table');if(block?.type==='heading')$('#style').value=`heading${block.level}`;else if(block?.type==="paragraph")$('#style').value='body'}
+document.querySelectorAll('[data-command]').forEach(b=>{b.addEventListener('pointerdown',e=>{if(b.dataset.textCommand!==undefined){e.preventDefault();captureSelection()}});b.addEventListener('click',()=>command(b.dataset.command))});$('#style').onchange=e=>command(e.target.value);$('#link-form').onsubmit=e=>{e.preventDefault();const external=$('#external-link').value.trim(),href=external?safeHref(external):$('#link-destination').value;if(href){$('#link-picker').close();transformSelection('link',href)}else alert('Enter a valid HTTPS, HTTP, mailto, or internal destination.')};
+function go(page){const pages=[...document.querySelectorAll('.pagedjs_page')];currentPage=Math.max(1,Math.min(pages.length,page));$('#current').textContent=currentPage;pages[currentPage-1]?.scrollIntoView({behavior:'smooth',block:'center'})}$('#prev').onclick=()=>go(currentPage-1);$('#next').onclick=()=>go(currentPage+1);render({restore:false});
