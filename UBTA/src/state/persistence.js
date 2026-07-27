@@ -44,8 +44,19 @@ export class Persistence {
   writeIndex(index) { this.storage.setItem(`${prefix}:index:v1`, JSON.stringify(index)); }
   create(document) { return { documentId: this.id(), revision: 0, document: validateDocument(document) }; }
   saveDraft({ documentId, revision = 0, document }, reason = 'autosave') {
-    const keys = this.keys(documentId), envelope = { storageVersion: STORAGE_VERSION, documentId, revision: revision + 1, savedAt: this.clock().toISOString(), reason, document: validateDocument(document) };
-    const raw = JSON.stringify(envelope), previous = this.storage.getItem(keys.draft);
+    const keys = this.keys(documentId), previous = this.storage.getItem(keys.draft);
+    if (previous) {
+      const stored = parseEnvelope(previous);
+      if (stored.revision !== revision) {
+        throw Object.assign(Error('A newer local draft was saved in another tab'), {
+          code: 'REVISION_CONFLICT',
+          expectedRevision: revision,
+          storedRevision: stored.revision
+        });
+      }
+    }
+    const envelope = { storageVersion: STORAGE_VERSION, documentId, revision: revision + 1, savedAt: this.clock().toISOString(), reason, document: validateDocument(document) };
+    const raw = JSON.stringify(envelope);
     this.storage.setItem(keys.temporary, raw);
     parseEnvelope(this.storage.getItem(keys.temporary));
     if (previous) this.storage.setItem(keys.recovery, previous);
