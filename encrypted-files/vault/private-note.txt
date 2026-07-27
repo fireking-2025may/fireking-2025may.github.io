@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "algorithm": "AES-GCM",
+  "kdf": "PBKDF2-SHA-256",
+  "iterations": 310000,
+  "salt": "9PGH4mxZfQlIfN1jAw15pg==",
+  "iv": "mVia0DX6VqN8Bi6u",
+  "ciphertext": "VSddBK+xlpOQYFBJMZcywtAxS/PvW1kgAlaDuboDcGySGXryZHda/KfkAPcwaE7npO45xggom9QPHccmaMrzFi/oN0PQ5jhi6nzK8gDFMVHU5to2o065doqaPKKDd4TQiFEoLfR3eQZjzOb3WBVSFiOSBBOy931SkozLBLSrUnw/3zZ6qd2NcOEeQgB5MJWhceXLDFFjFYa8yg=="
+}

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Private text vault</title>
+    <style>
+      :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #eef2ff; background: #080b14; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 0, #202a55 0, #080b14 48%); }
+      main { width: min(760px, 100%); }
+      .eyebrow { color: #91a7ff; font-size: .78rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+      h1 { margin: 10px 0; font-size: clamp(2rem, 6vw, 3.7rem); letter-spacing: -.05em; }
+      .intro { max-width: 620px; color: #aeb7d0; line-height: 1.65; }
+      form, .file { border: 1px solid #293253; border-radius: 18px; background: rgba(17, 22, 39, .92); box-shadow: 0 20px 60px #0008; }
+      form { display: flex; gap: 10px; margin-top: 30px; padding: 12px; }
+      label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      input { min-width: 0; flex: 1; border: 0; border-radius: 11px; padding: 14px 16px; color: inherit; background: #090d19; font: inherit; outline: none; }
+      input:focus { box-shadow: 0 0 0 3px #7186ff66; }
+      button { border: 0; border-radius: 11px; padding: 0 20px; color: #080b14; background: #9baaff; font: inherit; font-weight: 800; cursor: pointer; }
+      button:hover { background: #bac4ff; }
+      button:disabled { cursor: wait; opacity: .65; }
+      #status { min-height: 24px; margin: 14px 4px; color: #aeb7d0; }
+      #status.error { color: #ff9ca9; }
+      #files { display: grid; gap: 14px; }
+      .file { padding: 22px; }
+      .file h2 { margin: 0 0 12px; font-size: 1.05rem; }
+      .file pre { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; color: #cbd3e9; font: .95rem/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
+      .security { margin-top: 30px; color: #747f9e; font-size: .82rem; line-height: 1.55; }
+      @media (max-width: 520px) { form { flex-direction: column; } button { min-height: 48px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Client-side encrypted</p>
+      <h1>Private text vault</h1>
+      <p class="intro">The files in this folder contain encrypted ciphertext. Enter the password to decrypt them locally in this browser—your password and the readable text are never sent to a server.</p>
+
+      <form id="unlock-form">
+        <label for="password">Vault password</label>
+        <input id="password" name="password" type="password" placeholder="Enter vault password" autocomplete="current-password" required autofocus>
+        <button type="submit">Unlock files</button>
+      </form>
+      <p id="status" role="status" aria-live="polite">Vault is locked.</p>
+      <section id="files" aria-label="Decrypted files"></section>
+      <p class="security">Decryption uses AES-256-GCM and a PBKDF2-SHA-256 key derived separately for every file. Static hosting can protect data at rest, but it cannot hide file count or prevent offline password guessing; use a long, unique password.</p>
+    </main>
+
+    <script>
+      const form = document.querySelector('#unlock-form');
+      const passwordInput = document.querySelector('#password');
+      const status = document.querySelector('#status');
+      const filesContainer = document.querySelector('#files');
+      const decoder = new TextDecoder();
+
+      function decodeBase64(value) {
+        return Uint8Array.from(atob(value), character => character.charCodeAt(0));
+      }
+
+      async function decryptFile(path, password) {
+        const response = await fetch(path, { cache: 'no-store' });
+        if (!response.ok) throw new Error('An encrypted file could not be loaded.');
+        const envelope = JSON.parse(await response.text());
+        if (envelope.version !== 1 || envelope.algorithm !== 'AES-GCM') throw new Error('Unsupported encrypted file format.');
+
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']
+        );
+        const key = await crypto.subtle.deriveKey(
+          { name: 'PBKDF2', hash: 'SHA-256', salt: decodeBase64(envelope.salt), iterations: envelope.iterations },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['decrypt']
+        );
+        const plaintext = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: decodeBase64(envelope.iv) }, key, decodeBase64(envelope.ciphertext)
+        );
+        return JSON.parse(decoder.decode(plaintext));
+      }
+
+      function showFiles(files) {
+        filesContainer.replaceChildren(...files.map(file => {
+          const article = document.createElement('article');
+          article.className = 'file';
+          const heading = document.createElement('h2');
+          heading.textContent = file.name;
+          const content = document.createElement('pre');
+          content.textContent = file.content;
+          article.append(heading, content);
+          return article;
+        }));
+      }
+
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = form.querySelector('button');
+        button.disabled = true;
+        filesContainer.replaceChildren();
+        status.className = '';
+        status.textContent = 'Decrypting locally…';
+        try {
+          const manifestResponse = await fetch('manifest.json', { cache: 'no-store' });
+          if (!manifestResponse.ok) throw new Error('The vault manifest could not be loaded.');
+          const manifest = await manifestResponse.json();
+          const files = await Promise.all(manifest.files.map(path => decryptFile(path, passwordInput.value)));
+          showFiles(files);
+          status.textContent = `Unlocked ${files.length} encrypted ${files.length === 1 ? 'file' : 'files'}.`;
+          passwordInput.value = '';
+        } catch (error) {
+          status.className = 'error';
+          status.textContent = error.name === 'OperationError' ? 'Incorrect password or damaged file.' : error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
