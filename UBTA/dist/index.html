@@ -130,8 +130,8 @@ class History {
 }
 
 
-const history = new History(seedDocument); let state = history.checkout(); let currentPage = 1; let renderGeneration = 0;
-export const editorSelection = { activeStepId:null, activeBlockId:null, container:null, row:null, column:null, blockType:null, offsets:null, restoreFocus:false };
+const history = new History(seedDocument); let state = history.value; let currentPage = 1; let renderGeneration = 0;
+const editorSelection = { activeStepId:null, activeBlockId:null, container:null, row:null, column:null, blockType:null, offsets:null, restoreFocus:false };
 const pending = new Map(); const $ = s => document.querySelector(s); const esc = x => String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const runText = runs => (runs||[]).map(r=>r.text).join('');
 const runsHTML = runs => (runs||[]).map(r=>{let text=esc(r.text).replace(/\n/g,'<br>');if(r.link)text=`<a href="${esc(r.link.href)}">${text}</a>`;return r.highlight?`<mark>${text}</mark>`:text}).join('');
