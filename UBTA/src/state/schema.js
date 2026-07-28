@@ -69,7 +69,7 @@ export function normaliseBlock(block) {
     const source = Array.isArray(block.columns) ? block.columns.slice(0, 8) : [];
     const count = Math.max(1, source.length || 2), widths = normaliseTableWidths(source.map(x => x?.width), count);
     output.captionRuns = normaliseRuns(block.captionRuns || [{ text: block.caption ?? '' }]);
-    output.columns = Array.from({ length: count }, (_, i) => ({ id: makeId(source[i]?.id, 'column'), headingRuns: normaliseRuns(source[i]?.headingRuns || [{ text: source[i]?.heading ?? `Column ${i + 1}` }]), width: widths[i], format: tableColumnFormat(source[i]) }));
+    output.columns = Array.from({ length: count }, (_, i) => { const format=tableColumnFormat(source[i]); return { id: makeId(source[i]?.id, 'column'), headingRuns: normaliseRuns(source[i]?.headingRuns || [{ text: source[i]?.heading ?? `Column ${i + 1}` }]), width: widths[i], format, totalEnabled: format!=='text' && source[i]?.totalEnabled !== false }; });
     output.rows = (Array.isArray(block.rows) ? block.rows : []).map((row, ri) => ({ id: makeId(row?.id, 'row'), isTotal: row?.isTotal === true, cells: output.columns.map((column, ci) => normaliseCell(row?.cells?.[ci], `${output.id}-${ri}-${column.id}`)) }));
     recalculateTableTotals(output);
   } else {
