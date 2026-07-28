@@ -2,5 +2,6 @@
   "files": [
     "vault/welcome.txt",
     "vault/private-note.txt"
-  ]
+  ],
+  "editorDefaults": "vault/8f3c1a7e4d92b605.json"
 }
