@@ -1,4 +1,5 @@
-import { recalculateTableTotals, tableColumnFormat } from '../editor/table-values.js';
+import { recalculateTableTotals, tableColumnFormat } from './table-model.js';
+import { normalizeImageWidth, validateImageInput, validateImageSource } from './image-model.js';
 
 export const SCHEMA_VERSION = 5;
 export const METADATA_KEYS = ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'];
@@ -12,9 +13,8 @@ const makeId = (value, prefix = 'id') => IDENTIFIER.test(value || '') ? value : 
 
 export const safeHref = value => typeof value === 'string' && /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*$)/i.test(value) ? value : null;
 export const safeImageSrc = value => {
-  if (typeof value !== 'string') return null;
-  try { const url = new URL(value); return url.protocol === 'https:' && /\.(png|jpe?g|gif|webp)$/i.test(url.pathname) ? url.href : null; }
-  catch { return null; }
+  const result = validateImageSource(value);
+  return result.ok ? result.url : null;
 };
 
 export function normaliseRuns(runs) {
@@ -73,7 +73,7 @@ export function normaliseBlock(block) {
     output.rows = (Array.isArray(block.rows) ? block.rows : []).map((row, ri) => ({ id: makeId(row?.id, 'row'), isTotal: row?.isTotal === true, cells: output.columns.map((column, ci) => normaliseCell(row?.cells?.[ci], `${output.id}-${ri}-${column.id}`)) }));
     recalculateTableTotals(output);
   } else {
-    output.src = safeImageSrc(block.src); output.alt = String(block.alt ?? ''); output.captionRuns = normaliseRuns(block.captionRuns || [{ text: block.caption ?? '' }]); output.width = Math.min(100, Math.max(20, Number(block.width) || 100));
+    output.src = safeImageSrc(block.src); output.alt = String(block.alt ?? ''); output.captionRuns = normaliseRuns(block.captionRuns || [{ text: block.caption ?? '' }]); output.width = normalizeImageWidth(block.width);
   }
   return output;
 }
@@ -97,7 +97,7 @@ export function *runContainers(group) {
 }
 export const hasReview = group => [...runContainers(group)].some(container => container.runs.some(run => run.highlight));
 export const stableAnchor = entity => `anchor-${entity.id}`;
-export function validateDocument(document) { if (![1,2,3,4,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !block.src) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source'); return result; }
+export function validateDocument(document) { if (![1,2,3,4,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !validateImageInput({ source: block.src, altText: block.alt, width: block.width }).ok) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source and alternative text'); return result; }
 
 const eligibleText = step => [...runContainers(step)].filter(x => (x.kind === 'block' && x.block.type === 'paragraph') || ['listItem','tableCaption','imageCaption'].includes(x.kind)).map(x => x.runs.map(r => r.text).join('').trim()).find(Boolean) || '';
 export function transactionProposals(document) { return normaliseDocument(document).steps.map((step, index) => ({ id:`proposal-${step.id}`, stepId:step.id, title:`Step ${index+1}. ${step.title}`, anchor:stableAnchor(step), summary:step.summary.trim() || eligibleText(step) })); }
