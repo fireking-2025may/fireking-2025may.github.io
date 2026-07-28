@@ -18,6 +18,16 @@ test('production bundle includes the blank-space insertion helper before its cal
   assert.ok(caller > definition, 'the helper must be defined before blankStepClick uses it');
 });
 
+test('production bundle includes the editable-link click helper before its caller', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  const definition = html.indexOf('function handleEditableLinkClick(');
+  const caller = html.indexOf('handleEditableLinkClick(event,openEditorLink)');
+
+  assert.notEqual(definition, -1, 'handleEditableLinkClick must be bundled');
+  assert.ok(caller > definition, 'the helper must be defined before editableLinkClick uses it');
+});
+
 test('production bundle contains valid JavaScript and resolves table re-exports', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
