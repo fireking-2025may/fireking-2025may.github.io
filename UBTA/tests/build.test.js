@@ -28,6 +28,16 @@ test('production bundle includes the editable-link click helper before its calle
   assert.ok(caller > definition, 'the helper must be defined before editableLinkClick uses it');
 });
 
+test('production bundle defines navigation history before creating it', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  const definition = html.indexOf('class NavigationHistory');
+  const construction = html.indexOf('new NavigationHistory()');
+
+  assert.notEqual(definition, -1, 'NavigationHistory must be bundled');
+  assert.ok(construction > definition, 'NavigationHistory must be defined before it is constructed');
+});
+
 test('production bundle contains valid JavaScript and resolves table re-exports', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
