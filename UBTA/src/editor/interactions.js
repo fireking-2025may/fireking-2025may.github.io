@@ -1,4 +1,5 @@
 import { normaliseRuns, safeHref } from '../state/schema.js';
+export { parseTableNumber, formatTableNumber, tableColumnFormat, recalculateTableTotals, moveTableRow, moveTableColumn } from './table-values.js';
 export function validatedLink(external,internal){const candidate=String(external||'').trim();return safeHref(candidate||internal);}
 export function confirmStepDeletion(steps,index,confirmAction){if(steps.length<=1||index<0||index>=steps.length)return false;return confirmAction(`Delete Step ${index+1}: ${steps[index].title}?`);}
 export function splitListRuns(runs,offset){let position=0,before=[],after=[];for(const run of runs){const split=Math.max(0,Math.min(run.text.length,offset-position));if(split)before.push({...run,text:run.text.slice(0,split)});if(split<run.text.length)after.push({...run,text:run.text.slice(split)});position+=run.text.length}return [normaliseRuns(before),normaliseRuns(after)];}

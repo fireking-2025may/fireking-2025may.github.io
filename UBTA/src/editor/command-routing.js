@@ -1,4 +1,10 @@
-export const TABLE_COMMANDS = new Set(['addRow','removeRow','addColumn','removeColumn']);
+export const TABLE_COMMANDS = new Set(['addRow','removeRow','moveRowUp','moveRowDown','addColumn','removeColumn','moveColumnLeft','moveColumnRight']);
+
+export const canApplyBlockStyle = (blockType, action) => {
+  if (/^heading[1-4]$/.test(action)) return ['paragraph', 'heading'].includes(blockType);
+  if (action === 'body') return ['paragraph', 'heading'].includes(blockType);
+  return ['bulletList', 'numberList'].includes(action) && ['paragraph', 'heading', 'bulletList', 'numberList'].includes(blockType);
+};
 
 export const BLOCK_COMMANDS = new Map([
   ['addParagraph','paragraph'],
