@@ -7,7 +7,7 @@ export function runsFromElement(element) {
 }
 
 export function transformRuns(runs, offsets, kind, value) {
-  if(!offsets||offsets[0]===offsets[1])return runs;const [start,end]=offsets;let position=0;const selected=runs.filter(run=>{const from=position,until=position+=run.text.length;return from<end&&until>start});const highlight=kind==='highlight'?!selected.every(run=>run.highlight):null;position=0;const output=[];
+  if(!offsets)return runs;const collapsed=offsets[0]===offsets[1];if(collapsed&&kind!=='highlight')return runs;const [start,end]=collapsed?[0,runs.reduce((length,run)=>length+run.text.length,0)]:offsets;if(start===end)return runs;let position=0;const selected=runs.filter(run=>{const from=position,until=position+=run.text.length;return from<end&&until>start});const highlight=kind==='highlight'?!selected.every(run=>run.highlight):null;position=0;const output=[];
   for(const run of runs){const from=position,until=position+run.text.length,a=Math.max(start,from),b=Math.min(end,until);if(from<a)output.push({...run,text:run.text.slice(0,a-from)});if(b>a){const part={...run,text:run.text.slice(a-from,b-from)};if(kind==='highlight')part.highlight=highlight;if(kind==='link')part.link={href:value};if(kind==='unlink')part.link=null;output.push(part)}if(b<until)output.push({...run,text:run.text.slice(Math.max(0,b-from))});position=until}return normaliseRuns(output);
 }
 
