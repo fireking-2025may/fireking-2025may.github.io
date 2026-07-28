@@ -664,6 +664,22 @@ function bindCallouts(root=document){
 }
 
 
+function followEditorLink(href,{navigateInternal,openExternal,openMailto,report=()=>{}}){
+  const safe=safeHref(href);
+  if(!safe){report('This link is not safe to open');return false}
+  if(safe.startsWith('#')){const opened=navigateInternal(safe.slice(1));if(!opened)report('The linked document destination no longer exists');return opened}
+  if(/^https?:/i.test(safe)){openExternal(safe);return true}
+  if(/^mailto:/i.test(safe)){openMailto(safe);return true}
+  return false;
+}
+
+function handleEditableLinkClick(event,openLink){
+  const link=event.target?.closest?.('.editable-runs a');
+  if(!link||event.button!==0)return false;
+  event.preventDefault();openLink(link.getAttribute('href'));return true;
+}
+
+
 let initial=seedDocument,loadedRevision=0;try{const draft=readDraft();initial=snapshotFromLocation()||draft?.document||readRecovery()?.document||seedDocument;loadedRevision=draft?.revision||0}catch(error){setTimeout(()=>alert(error.message),0)}const history = new History(initial); let state = history.checkout(); let currentPage = 1;let dirty=false,autosaveTimer=null;
 const editorSelection = { activeGroupId:null, activeGroupType:null, activeStepId:null, activeBlockId:null, container:null, row:null, column:null, blockType:null, offsets:null, restoreFocus:false };
 const pending = new Map(), pendingStepTitles = new Map(); const $ = s => document.querySelector(s); const esc = x => String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
