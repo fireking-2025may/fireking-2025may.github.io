@@ -1,1 +1,1 @@
-{"name":"ubta-steps-plan-editor","version":"0.1.0","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","test":"node --test"}}
+{"name":"ubta-steps-plan-editor","version":"0.1.0","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","test:schema":"node --test tests/scheme.test.js","test:editor":"node --test tests/editor-interactions.test.js tests/repagination.test.js","test":"npm run test:schema && npm run test:editor"}}

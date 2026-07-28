@@ -1,0 +1,9 @@
+{
+  "runs": [
+    {"text":"plain","highlight":false,"link":null},
+    {"text":"highlighted","highlight":true,"link":null},
+    {"text":"internal","highlight":true,"link":{"href":"#anchor-step"}},
+    {"text":"external","highlight":false,"link":{"href":"https://example.test"}}
+  ],
+  "nestedMarkup": "<div><mark><a href=\"#anchor-step\"><span>nested</span></a></mark></div><p>block</p>"
+}
