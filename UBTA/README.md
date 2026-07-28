@@ -8,7 +8,7 @@ Run `python3 -m http.server 8000 -d src`, then visit `http://localhost:8000`. No
 
 ## Standalone build
 
-Run `npm run build`, then open `dist/index.html` directly in current Chrome or Edge (`file:///…/dist/index.html`). It contains all CSS and JavaScript; only published images referenced by a document are fetched at runtime. Drafts, recovery data, and up to 20 named versions are stored only in that browser's local storage.
+Run `npm run build`, then open `dist/index.html` directly in current Chrome or Edge (`file:///…/dist/index.html`). It contains all CSS, JavaScript, and encrypted default-update data, so unlocking templates does not require a local fetch; only published images referenced by a document are fetched at runtime. Drafts, recovery data, and up to 20 named versions are stored only in that browser's local storage.
 
 ## Local persistence and snapshots
 

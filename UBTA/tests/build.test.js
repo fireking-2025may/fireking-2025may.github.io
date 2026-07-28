@@ -30,6 +30,14 @@ test('production bundle contains valid JavaScript and resolves table re-exports'
   assert.doesNotThrow(() => new vm.Script(source), 'the production bundle must parse as classic JavaScript');
 });
 
+test('standalone template unlock has embedded ciphertext and performs no runtime fetch', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  assert.match(html, /const defaultTemplateEnvelope=/);
+  assert.match(html, /ciphertext:'VgziFV2P5dlF/);
+  assert.doesNotMatch(html, /fetch\(['"]\.\.\/\.\.\/encrypted-files/);
+});
+
 test('standalone build contains the complete print feature', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
