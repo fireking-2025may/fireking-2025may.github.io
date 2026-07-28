@@ -47,39 +47,12 @@
       <p class="security">Decryption uses AES-256-GCM and a PBKDF2-SHA-256 key derived separately for every file. Static hosting can protect data at rest, but it cannot hide file count or prevent offline password guessing; use a long, unique password.</p>
     </main>
 
-    <script>
+    <script type="module">
+      import { decryptFile } from './crypto.js';
       const form = document.querySelector('#unlock-form');
       const passwordInput = document.querySelector('#password');
       const status = document.querySelector('#status');
       const filesContainer = document.querySelector('#files');
-      const decoder = new TextDecoder();
-
-      function decodeBase64(value) {
-        return Uint8Array.from(atob(value), character => character.charCodeAt(0));
-      }
-
-      async function decryptFile(path, password) {
-        const response = await fetch(path, { cache: 'no-store' });
-        if (!response.ok) throw new Error('An encrypted file could not be loaded.');
-        const envelope = JSON.parse(await response.text());
-        if (envelope.version !== 1 || envelope.algorithm !== 'AES-GCM') throw new Error('Unsupported encrypted file format.');
-
-        const keyMaterial = await crypto.subtle.importKey(
-          'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']
-        );
-        const key = await crypto.subtle.deriveKey(
-          { name: 'PBKDF2', hash: 'SHA-256', salt: decodeBase64(envelope.salt), iterations: envelope.iterations },
-          keyMaterial,
-          { name: 'AES-GCM', length: 256 },
-          false,
-          ['decrypt']
-        );
-        const plaintext = await crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: decodeBase64(envelope.iv) }, key, decodeBase64(envelope.ciphertext)
-        );
-        return JSON.parse(decoder.decode(plaintext));
-      }
-
       function showFiles(files) {
         filesContainer.replaceChildren(...files.map(file => {
           const article = document.createElement('article');
@@ -107,11 +80,11 @@
           const files = await Promise.all(manifest.files.map(path => decryptFile(path, passwordInput.value)));
           showFiles(files);
           status.textContent = `Unlocked ${files.length} encrypted ${files.length === 1 ? 'file' : 'files'}.`;
-          passwordInput.value = '';
         } catch (error) {
           status.className = 'error';
-          status.textContent = error.name === 'OperationError' ? 'Incorrect password or damaged file.' : error.message;
+          status.textContent = error.message;
         } finally {
+          passwordInput.value = '';
           button.disabled = false;
         }
       });

@@ -8,6 +8,19 @@ Files under `vault/` are JSON text envelopes containing only a random salt, IV, 
 { "name": "example.txt", "content": "Private text goes here." }
 ```
 
+Editor template databases use this reusable decrypted payload format:
+
+```json
+{
+  "type": "editor-defaults",
+  "templates": [
+    { "id": "unique-stable-id", "header": "Template label", "body": "Template paragraph" }
+  ]
+}
+```
+
+`type` must be exactly `editor-defaults`; `templates` must be a non-empty array; and every record must have a unique, non-empty string `id`, `header`, and `body`. The editor validates every decrypted record before exposing it. Template text remains ciphertext in the repository and is cached only in memory for the current page session.
+
 Each file uses a unique 16-byte salt, a unique 12-byte IV, and 310,000 PBKDF2-SHA-256 iterations. The filenames inside each payload are encrypted; `manifest.json` exposes only the opaque storage paths needed by the static page.
 
 ## Important limitations
