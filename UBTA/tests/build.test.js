@@ -29,3 +29,14 @@ test('production bundle contains valid JavaScript and resolves table re-exports'
   assert.ok(source.indexOf('function parseTableNumber(') < source.indexOf('parseTableNumber(value)'), 'table helpers must be bundled before their callers');
   assert.doesNotThrow(() => new vm.Script(source), 'the production bundle must parse as classic JavaScript');
 });
+
+test('standalone build contains the complete print feature', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  assert.match(html, /id="print-document"/);
+  assert.match(html, /new PrintLifecycle\(/);
+  assert.match(html, /window\.print\(\)/);
+  assert.match(html, /@media print/);
+  assert.match(html, /width:297mm!important;height:210mm!important/);
+  assert.match(html, /\.pagedjs_page:last-child\{break-after:auto/);
+});
