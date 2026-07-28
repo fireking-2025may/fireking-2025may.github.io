@@ -36,7 +36,9 @@ test('standalone build contains the complete print feature', () => {
   assert.match(html, /id="print-document"/);
   assert.match(html, /new PrintLifecycle\(/);
   assert.match(html, /window\.print\(\)/);
+  assert.match(html, /Print preparation failed:/);
   assert.match(html, /@media print/);
   assert.match(html, /width:297mm!important;height:210mm!important/);
   assert.match(html, /\.pagedjs_page:last-child\{break-after:auto/);
+  assert.match(html, /\.step-title-print\{visibility:hidden/);
 });
