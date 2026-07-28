@@ -6,6 +6,10 @@ export const canApplyBlockStyle = (blockType, action) => {
   return ['bulletList', 'numberList'].includes(action) && ['paragraph', 'heading', 'bulletList', 'numberList'].includes(blockType);
 };
 
+export const blockStyleChoices = blockType => ['bulletList','numberList'].includes(blockType)
+  ? [['bulletList','Bulleted list'],['numberList','Numbered list']]
+  : [['body','Body text'],['heading1','Heading 1'],['heading2','Heading 2'],['heading3','Heading 3'],['heading4','Heading 4'],['bulletList','Bulleted list'],['numberList','Numbered list']];
+
 export const BLOCK_COMMANDS = new Map([
   ['addParagraph','paragraph'],
   ['addHeading','heading'],

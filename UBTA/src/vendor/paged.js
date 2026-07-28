@@ -163,8 +163,11 @@
       if (!overflows(sheet)) continue;
       const hadPrevious = body.children.length > 1;
       if (hadPrevious) {
+        const heading = block.matches('[data-type="paragraph"]') && block.previousElementSibling?.matches('[data-type="heading"]') ? block.previousElementSibling : null;
         block.remove();
+        heading?.remove();
         body = nextPage();
+        if (heading) body.append(heading);
         body.append(block);
       }
       if (overflows(sheet)) {

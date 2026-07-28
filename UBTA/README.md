@@ -18,7 +18,9 @@ Use **Save version** to create a named local checkpoint and **Versions** to rest
 
 **Copy snapshot link** creates a schema-validated, versioned document snapshot in the URL fragment. Anyone opening the link receives an independent copy; later local edits are not synchronised. Snapshot contents are readable in the URL and must not be used for confidential client data. All persistence is browser-local: clearing site data, changing browser/profile, or using a different `file:` location can make it unavailable, so named versions are not a substitute for managed backups.
 
-Linked text remains directly editable. Use Ctrl-click on Windows/Linux or Cmd-click on macOS to follow a link, or place the caret in linked text and choose **Open link**. Internal links stay in the editor, while HTTP(S) destinations open in a separate protected tab.
+Headings are structural labels for the body content that follows them. Keep each heading immediately before its first related body paragraph (do not place another heading or an unrelated block between them). The paginator treats that heading and paragraph as a pair so a page break does not leave the heading stranded at the bottom of a page. Press **Enter** in a heading to create and focus the body paragraph directly below it.
+
+Linked text remains directly editable. Click linked text to follow it, or place the caret in linked text and choose **Open link**. Internal links stay in the editor, while HTTP(S) destinations open in a separate protected tab.
 
 ## Implemented scope
 
