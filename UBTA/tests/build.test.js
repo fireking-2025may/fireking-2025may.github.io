@@ -82,3 +82,23 @@ test('A4 print wrappers override responsive preview scaling consistently', () =>
   assert.match(print, /\.pagedjs_pages\{display:block!important;width:297mm!important[^}]*zoom:1!important;transform:none!important/);
   assert.match(print, /#preview \.pagedjs_page:last-child\{break-after:auto;page-break-after:auto\}/);
 });
+
+test('source and standalone toolbars omit global insertion controls but retain contextual insertion', () => {
+  const source = fs.readFileSync(path.join(root, 'src/index.html'), 'utf8');
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const built = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+
+  for (const [name, html] of [['source', source], ['standalone build', built]]) {
+    assert.doesNotMatch(html, /class="[^"]*insert-group/, `${name} must not render the Insert toolbar group`);
+    for (const command of ['addParagraph', 'addHeading', 'addBulletList', 'addNumberList', 'addTable', 'addImage']) {
+      assert.doesNotMatch(html, new RegExp(`<button[^>]+data-command="${command}"[^>]*data-requires-group`), `${name} must not render the ${command} toolbar button`);
+    }
+    assert.match(html, /<dialog id="insertion-chooser"/, `${name} must retain the contextual insertion chooser`);
+    for (const group of ['document', 'text', 'step', 'appendix', 'table']) {
+      assert.match(html, new RegExp(`class="toolbar-group ${group}-group"`), `${name} must render the ${group} toolbar group`);
+    }
+    assert.match(html, /<nav class="nav" aria-label="Page navigation">/, `${name} must render page navigation`);
+    assert.doesNotMatch(html, /class="toolbar-group history-group"/, `${name} must place history actions in Document`);
+    assert.doesNotMatch(html, /id="page-select"/, `${name} must omit the visible Go to selector`);
+  }
+});
