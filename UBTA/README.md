@@ -25,7 +25,7 @@ Use **Save version** to create a named local checkpoint and **Versions** to rest
 * Debounced, generation-gated preview pagination that preserves the active page, scroll position, focus, and text selection while rejecting stale renders.
 * Landscape A4 page preview with repeated report header, anchor-keyed linked contents, derived transaction proposals and `Page X of Y` footers.
 * In-preview constrained editing that preserves sanitised highlights and links after every render.
-* Editable step titles plus stable-ID add, reorder and delete controls.
+* Editable step and appendix titles plus stable-ID add, reorder and delete controls; derived alphabetical appendix labels update automatically.
 * Editable accessible tables, highlighted total rows and keyboard-focusable column resizing.
 * Published PNG, JPEG, GIF and WebP images referenced by validated HTTPS URLs, with required alternative text and optional captions and widths. Images remain hosted by their publisher and are not downloaded or base64-encoded into the document.
 
@@ -37,7 +37,7 @@ Schema version 4 no longer accepts `data:` URLs. Drafts, saved versions, recover
 
 ## Deliberately deferred
 
-Diagrams, generated acronyms, appendix entities, optional sections, collaboration, authentication/APIs, managed exports/backups, and mobile/tablet layouts are not present.
+Diagrams, generated acronyms, optional sections, collaboration, authentication/APIs, managed exports/backups, and mobile/tablet layouts are not present.
 
 ## Typography and supplied assets
 
