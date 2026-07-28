@@ -82,23 +82,42 @@
     return [...root.querySelectorAll('[contenteditable=true]')].reduce((n, el) => n + el.textContent.length, 0);
   }
 
+  function textBoundary(root, offset) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let remaining = offset;
+    let node;
+    while ((node = walker.nextNode())) {
+      if (remaining <= node.data.length) return [node, remaining];
+      remaining -= node.data.length;
+    }
+    return [root, root.childNodes.length];
+  }
+
+  function richTextSlice(source, start, end) {
+    const range = document.createRange();
+    range.setStart(...textBoundary(source, start));
+    range.setEnd(...textBoundary(source, end));
+    return range.cloneContents();
+  }
+
   function splitTextNode(block, fit) {
     const editable = block.querySelector('[contenteditable=true]');
     if (!editable || editable.querySelector('table,img')) return null;
-    const text = editable.textContent;
+    const original = editable.cloneNode(true);
+    const text = original.textContent;
     if (text.length < 2) return null;
     let low = 1, high = text.length - 1, best = 0;
     while (low <= high) {
       const middle = (low + high) >> 1;
-      editable.textContent = text.slice(0, middle);
+      editable.replaceChildren(richTextSlice(original, 0, middle));
       if (fit()) { best = middle; low = middle + 1; } else high = middle - 1;
     }
-    if (!best) { editable.textContent = text; return null; }
+    if (!best) { editable.replaceChildren(...original.cloneNode(true).childNodes); return null; }
     const breakAt = text.lastIndexOf(' ', best);
     best = breakAt > best / 2 ? breakAt + 1 : best;
-    editable.textContent = text.slice(0, best);
+    editable.replaceChildren(richTextSlice(original, 0, best));
     const rest = block.cloneNode(true);
-    rest.querySelector('[contenteditable=true]').textContent = text.slice(best);
+    rest.querySelector('[contenteditable=true]').replaceChildren(richTextSlice(original, best, text.length));
     block.dataset.fragmentPart = 'true';
     rest.dataset.fragmentPart = 'true';
     return rest;
@@ -107,11 +126,14 @@
   function splitList(block, fit) {
     const list = block.querySelector(':scope > ol, :scope > ul');
     if (!list || list.children.length < 2) return null;
+    const rest = block.cloneNode(true);
     const items = [...list.children];
     let keep = items.length;
     while (keep > 1 && !fit()) items[--keep].remove();
-    if (!fit()) return null;
-    const rest = block.cloneNode(true);
+    if (!fit()) {
+      list.replaceChildren(...rest.querySelector(':scope > ol, :scope > ul').cloneNode(true).children);
+      return null;
+    }
     const restList = rest.querySelector(':scope > ol, :scope > ul');
     [...restList.children].slice(0, keep).forEach(el => el.remove());
     block.dataset.fragmentPart = rest.dataset.fragmentPart = 'true';
@@ -121,10 +143,14 @@
   function splitTable(block, fit) {
     const rows = [...block.querySelectorAll('tbody > tr')];
     if (rows.length < 2) return null;
+    const rest = block.cloneNode(true);
     let keep = rows.length;
     while (keep > 1 && !fit()) rows[--keep].remove();
-    if (!fit()) return null;
-    const rest = block.cloneNode(true);
+    if (!fit()) {
+      const sourceBody = rest.querySelector('tbody');
+      block.querySelector('tbody').replaceChildren(...sourceBody.cloneNode(true).children);
+      return null;
+    }
     [...rest.querySelectorAll('tbody > tr')].slice(0, keep).forEach(el => el.remove());
     block.dataset.fragmentPart = rest.dataset.fragmentPart = 'true';
     return rest;
