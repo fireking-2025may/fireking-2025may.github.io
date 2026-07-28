@@ -3,21 +3,146 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World 2025</title>
+  <title>Tools and Projects | Fireking</title>
   <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #172033;
+      background: #eef3f8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
       min-height: 100vh;
       margin: 0;
-      font-size: 4rem;
-      font-weight: bold;
-      color: black;
+      padding: clamp(2rem, 6vw, 5rem) clamp(1rem, 5vw, 4rem);
+      background: linear-gradient(145deg, #f8fbff 0%, #e4edf6 100%);
+    }
+
+    header,
+    nav {
+      width: min(70rem, 100%);
+      margin-inline: auto;
+    }
+
+    header {
+      margin-bottom: 2.25rem;
+    }
+
+    h1 {
+      margin: 0 0 0.75rem;
+      font-size: clamp(2.25rem, 6vw, 4.5rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      color: #102a43;
+    }
+
+    header p {
+      max-width: 45rem;
+      margin: 0;
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      line-height: 1.6;
+      color: #334e68;
+    }
+
+    nav ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+      gap: 1rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    nav a {
+      display: flex;
+      min-height: 10rem;
+      padding: 1.5rem;
+      border: 2px solid #9fb3c8;
+      border-radius: 0.75rem;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 1rem;
+      color: #102a43;
+      background: #ffffff;
+      box-shadow: 0 0.3rem 0 #bcccdc;
+      text-decoration: none;
+      transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    }
+
+    nav a:hover {
+      border-color: #1769aa;
+      box-shadow: 0 0.45rem 0 #1769aa;
+      transform: translateY(-0.15rem);
+    }
+
+    nav a:focus-visible {
+      border-color: #0b4f8a;
+      outline: 0.25rem solid #f6c344;
+      outline-offset: 0.2rem;
+      box-shadow: 0 0.45rem 0 #0b4f8a;
+      transform: translateY(-0.15rem);
+    }
+
+    .link-title {
+      font-size: 1.4rem;
+      font-weight: 750;
+      line-height: 1.2;
+      text-decoration: underline;
+      text-decoration-thickness: 0.1em;
+      text-underline-offset: 0.18em;
+    }
+
+    .link-description {
+      font-size: 0.98rem;
+      line-height: 1.5;
+      color: #486581;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      nav a {
+        transition: none;
+      }
     }
   </style>
 </head>
 <body>
-  hello world 2025
+  <header>
+    <h1>Tools and projects</h1>
+    <p>Explore interactive calculators, planning tools, and project resources.</p>
+  </header>
+
+  <nav aria-label="Main navigation">
+    <ul>
+      <li>
+        <a href="Growth.html">
+          <span class="link-title">Growth</span>
+          <span class="link-description">Explore the growth project and its resources.</span>
+        </a>
+      </li>
+      <li>
+        <a href="Gross2Net.html">
+          <span class="link-title">Gross-to-net calculator</span>
+          <span class="link-description">Estimate net income from a gross amount.</span>
+        </a>
+      </li>
+      <li>
+        <a href="../client/index.html">
+          <span class="link-title">Neural network homepage</span>
+          <span class="link-description">Visit Brook&rsquo;s neural network project.</span>
+        </a>
+      </li>
+      <li>
+        <a href="../UBTA/dist/index.html">
+          <span class="link-title">UBTA steps plan editor</span>
+          <span class="link-description">Create and edit structured UBTA steps plans.</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
 </body>
 </html>
