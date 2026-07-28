@@ -17,3 +17,7 @@ export function insertionContextFromPoint(groupId, blockElements, clientY) {
   if (following) return { groupId, referenceBlockId: following.id, position: 'before' };
   return { groupId, referenceBlockId: null, position: 'after' };
 }
+
+export function canOpenBlankSpaceInsertion(activeGroupId, clickedGroupId) {
+  return Boolean(activeGroupId && activeGroupId === clickedGroupId);
+}

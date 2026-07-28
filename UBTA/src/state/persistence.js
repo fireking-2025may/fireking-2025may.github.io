@@ -43,6 +43,18 @@ export function saveVersion(document, label, storage = localStorage, now = Date.
   return record;
 }
 
+export function nextAvailableVersion(currentVersion, versions = []) {
+  const current = String(currentVersion || '').trim();
+  const match = current.match(/^(.*?)(\d+)([^\d]*)$/);
+  const prefix = match?.[1] ?? 'v', suffix = match?.[3] ?? '';
+  const candidates = [current, ...versions.map(version => version?.document?.meta?.version)];
+  const numbers = candidates.flatMap(value => {
+    const candidate = String(value || '').trim().match(/^(.*?)(\d+)([^\d]*)$/);
+    return candidate && candidate[1] === prefix && candidate[3] === suffix ? [Number(candidate[2])] : [];
+  });
+  return `${prefix}${Math.max(0, ...numbers) + 1}${suffix}`;
+}
+
 export function deleteVersion(id, storage = localStorage) {
   storage.setItem(STORAGE_KEYS.versions, JSON.stringify(listVersions(storage).filter(version => version.id !== id)));
 }
