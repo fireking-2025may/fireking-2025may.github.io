@@ -1,7 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { transformRuns, runsFromElement, insertPlainText } from '../src/editor/dom-runs.js';
-import { containedSelectionOffsets, validatedLink, confirmStepDeletion, splitListRuns, removeEmptyListItem, insertTableRowBeforeTotals, insertTableRowAfter, insertTableColumnAfter, GenerationGate, restoreTextSelection, parseTableNumber, formatTableNumber, recalculateTableTotals, moveTableRow, moveTableColumn } from '../src/editor/interactions.js';
+import { containedSelectionOffsets, validatedLink, confirmStepDeletion, splitListRuns, removeEmptyListItem, insertTableRowBeforeTotals, insertTableRowAfter, insertTableColumnAfter, GenerationGate, restoreTextSelection } from '../src/editor/interactions.js';
+import { parseTableNumber, formatTableNumber, recalculateTableTotals, moveTableRow, moveTableColumn } from '../src/state/table-model.js';
 import { routeInsertionCommand, canApplyBlockStyle, blockStyleChoices } from '../src/editor/command-routing.js';
 import { renderList } from '../src/editor/list-rendering.js';
 import { blockTypeLabel, removeBlockFromGroup } from '../src/editor/block-deletion.js';

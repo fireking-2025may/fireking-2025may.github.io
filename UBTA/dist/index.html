@@ -312,6 +312,280 @@ function moveTableColumn(block, index, offset) {
   return target;
 }
 
+const SUPPORTED_IMAGE_PATH = /\.(png|jpe?g|gif|webp)$/i;
+
+function validateImageSource(value) {
+  const source = typeof value === 'string' ? value.trim() : '';
+  if (!source) return { ok: false, error: 'missing-source' };
+
+  let url;
+  try {
+    url = new URL(source);
+  } catch {
+    return { ok: false, error: 'malformed-source' };
+  }
+
+  if (url.protocol !== 'https:') return { ok: false, error: 'unsupported-protocol' };
+  if (!SUPPORTED_IMAGE_PATH.test(url.pathname)) return { ok: false, error: 'unsupported-extension' };
+  return { ok: true, url: url.href };
+}
+
+function normalizeImageWidth(value) {
+  return Math.min(100, Math.max(20, Number(value) || 100));
+}
+
+function validateImageInput(input = {}) {
+  const source = validateImageSource(input.source);
+  if (!source.ok) return source;
+
+  const altText = String(input.altText ?? '').trim();
+  if (!altText) return { ok: false, error: 'missing-alt-text' };
+
+  return {
+    ok: true,
+    image: {
+      source: source.url,
+      altText,
+      width: normalizeImageWidth(input.width),
+    },
+  };
+}
+
+
+const unchanged = (document, error) => ({ changed: false, document, error });
+const changed = (document, details = {}) => ({ changed: true, document, ...details });
+const clone = document => structuredClone(document);
+
+function findDocumentGroup(document, groupId) {
+  for (const [groupType, groups] of [['step', document.steps || []], ['appendix', document.appendices || []]]) {
+    const groupIndex = groups.findIndex(group => group.id === groupId);
+    if (groupIndex !== -1) return { groupType, groupIndex, group: groups[groupIndex] };
+  }
+  return null;
+}
+
+function findDocumentBlock(document, blockId) {
+  for (const group of [...(document.steps || []), ...(document.appendices || [])]) {
+    const blockIndex = group.blocks.findIndex(block => block.id === blockId);
+    if (blockIndex !== -1) return { group, blockIndex, block: group.blocks[blockIndex] };
+  }
+  return null;
+}
+
+function addStep(document, referenceStepId, position, ids) {
+  const index = document.steps.findIndex(step => step.id === referenceStepId);
+  if (index === -1) return unchanged(document, 'step-not-found');
+  const nextDocument = clone(document);
+  const step = { id: ids.stepId, title: 'New transaction step', blocks: [{ id: ids.blockId, type: 'paragraph', runs: [] }] };
+  nextDocument.steps.splice(index + (position === 'after' ? 1 : 0), 0, step);
+  return changed(nextDocument, { selectedStepId: step.id, selectedBlockId: ids.blockId });
+}
+
+function moveStep(document, stepId, direction) {
+  const index = document.steps.findIndex(step => step.id === stepId);
+  if (index === -1) return unchanged(document, 'step-not-found');
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= document.steps.length) return unchanged(document, 'step-cannot-move');
+  const nextDocument = clone(document);
+  [nextDocument.steps[index], nextDocument.steps[targetIndex]] = [nextDocument.steps[targetIndex], nextDocument.steps[index]];
+  return changed(nextDocument, { selectedStepId: stepId, index: targetIndex });
+}
+
+function deleteStep(document, stepId) {
+  const index = document.steps.findIndex(step => step.id === stepId);
+  if (index === -1) return unchanged(document, 'step-not-found');
+  if (document.steps.length <= 1) return unchanged(document, 'final-step');
+  const nextDocument = clone(document);
+  nextDocument.steps.splice(index, 1);
+  return changed(nextDocument, { selectedStepId: nextDocument.steps[Math.min(index, nextDocument.steps.length - 1)].id });
+}
+
+function addAppendix(document, ids) {
+  const nextDocument = clone(document);
+  const appendix = { id: ids.appendixId, title: 'New appendix', blocks: [{ id: ids.blockId, type: 'paragraph', runs: [] }] };
+  nextDocument.appendices.push(appendix);
+  return changed(nextDocument, { selectedAppendixId: appendix.id, selectedBlockId: ids.blockId, index: nextDocument.appendices.length - 1 });
+}
+
+function moveAppendix(document, appendixId, direction) {
+  const index = document.appendices.findIndex(appendix => appendix.id === appendixId);
+  if (index === -1) return unchanged(document, 'appendix-not-found');
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= document.appendices.length) return unchanged(document, 'appendix-cannot-move');
+  const nextDocument = clone(document);
+  [nextDocument.appendices[index], nextDocument.appendices[targetIndex]] = [nextDocument.appendices[targetIndex], nextDocument.appendices[index]];
+  return changed(nextDocument, { selectedAppendixId: appendixId, index: targetIndex });
+}
+
+function deleteAppendix(document, appendixId) {
+  const index = document.appendices.findIndex(appendix => appendix.id === appendixId);
+  if (index === -1) return unchanged(document, 'appendix-not-found');
+  const nextDocument = clone(document);
+  nextDocument.appendices.splice(index, 1);
+  const target = nextDocument.appendices[Math.min(index, nextDocument.appendices.length - 1)];
+  return changed(nextDocument, { selectedAppendixId: target?.id || null, selectedStepId: target ? null : nextDocument.steps.at(-1)?.id || null });
+}
+
+function createBlock(type, headingLevel, makeId) {
+  const id = makeId('block');
+  if (type === 'heading') return { id, type, level: Math.min(4, Math.max(1, Number(headingLevel) || 2)), runs: [] };
+  if (type.endsWith('List')) return { id, type, items: [{ id: makeId('item'), level: 1, runs: [] }] };
+  if (type === 'table') return { id, type, captionRuns: [{ text: 'Table caption' }], columns: [{ id: makeId('column'), headingRuns: [{ text: 'Column 1' }], width: 50 }, { id: makeId('column'), headingRuns: [{ text: 'Column 2' }], width: 50 }], rows: [{ id: makeId('row'), cells: [{ id: makeId('cell'), runs: [] }, { id: makeId('cell'), runs: [] }] }] };
+  return { id, type, runs: [] };
+}
+
+function insertBlock(document, context, type, headingLevel, makeId) {
+  if (!['paragraph', 'heading', 'bulletList', 'numberList', 'table'].includes(type)) return unchanged(document, 'unsupported-block-type');
+  const found = findDocumentGroup(document, context?.groupId);
+  if (!found) return unchanged(document, 'group-not-found');
+  let index = found.group.blocks.length;
+  if (context.referenceBlockId) {
+    const referenceIndex = found.group.blocks.findIndex(block => block.id === context.referenceBlockId);
+    if (referenceIndex === -1) return unchanged(document, 'reference-block-not-found');
+    index = referenceIndex + (context.position === 'before' ? 0 : 1);
+  }
+  const nextDocument = clone(document);
+  const nextGroup = findDocumentGroup(nextDocument, context.groupId).group;
+  const block = createBlock(type, headingLevel, makeId);
+  nextGroup.blocks.splice(index, 0, block);
+  return changed(nextDocument, { selectedGroupId: nextGroup.id, selectedGroupType: found.groupType, selectedBlockId: block.id, block });
+}
+
+function insertBlocks(document, context, blocks) {
+  const found = findDocumentGroup(document, context?.groupId);
+  if (!found) return unchanged(document, 'group-not-found');
+  if (!Array.isArray(blocks) || !blocks.length) return unchanged(document, 'blocks-required');
+  let index = found.group.blocks.length;
+  if (context.referenceBlockId) {
+    const referenceIndex = found.group.blocks.findIndex(block => block.id === context.referenceBlockId);
+    if (referenceIndex === -1) return unchanged(document, 'reference-block-not-found');
+    index = referenceIndex + (context.position === 'before' ? 0 : 1);
+  }
+  const nextDocument = clone(document);
+  const nextGroup = findDocumentGroup(nextDocument, context.groupId).group;
+  const insertedBlocks = structuredClone(blocks);
+  nextGroup.blocks.splice(index, 0, ...insertedBlocks);
+  return changed(nextDocument, { selectedGroupId: nextGroup.id, selectedGroupType: found.groupType, selectedBlockId: insertedBlocks[0].id, block: insertedBlocks[0] });
+}
+
+function moveBlock(document, blockId, direction) {
+  const found = findDocumentBlock(document, blockId);
+  if (!found) return unchanged(document, 'block-not-found');
+  const targetIndex = found.blockIndex + direction;
+  if (targetIndex < 0 || targetIndex >= found.group.blocks.length) return unchanged(document, 'block-cannot-move');
+  const nextDocument = clone(document);
+  const nextFound = findDocumentBlock(nextDocument, blockId);
+  [nextFound.group.blocks[nextFound.blockIndex], nextFound.group.blocks[targetIndex]] = [nextFound.group.blocks[targetIndex], nextFound.group.blocks[nextFound.blockIndex]];
+  return changed(nextDocument, { selectedBlockId: blockId, index: targetIndex });
+}
+
+function deleteBlock(document, blockId, makeId) {
+  const found = findDocumentBlock(document, blockId);
+  if (!found) return unchanged(document, 'block-not-found');
+  const nextDocument = clone(document);
+  const nextFound = findDocumentBlock(nextDocument, blockId);
+  nextFound.group.blocks.splice(nextFound.blockIndex, 1);
+  if (!nextFound.group.blocks.length) nextFound.group.blocks.push({ id: makeId('block'), type: 'paragraph', runs: [] });
+  const target = nextFound.group.blocks[Math.max(0, nextFound.blockIndex - 1)] || nextFound.group.blocks[0];
+  return changed(nextDocument, { deletedBlockType: found.block.type, selectedBlockId: target.id, selectedBlock: target });
+}
+
+function tableResult(document, blockId) {
+  const found = findDocumentBlock(document, blockId);
+  if (!found || found.block.type !== 'table') return null;
+  const nextDocument = clone(document);
+  return { nextDocument, block: findDocumentBlock(nextDocument, blockId).block };
+}
+
+function addTableRow(document, blockId, afterRowId, makeId) {
+  const table = tableResult(document, blockId);
+  if (!table) return unchanged(document, 'table-not-found');
+  const rowIndex = table.block.rows.findIndex(row => row.id === afterRowId);
+  if (afterRowId && rowIndex === -1) return unchanged(document, 'row-not-found');
+  const index = rowIndex === -1 ? table.block.rows.length : rowIndex + 1;
+  const row = { id: makeId('row'), isTotal: false, cells: table.block.columns.map(() => ({ id: makeId('cell'), runs: [] })) };
+  table.block.rows.splice(index, 0, row); recalculateTableTotals(table.block);
+  return changed(table.nextDocument, { selectedRowId: row.id, index });
+}
+
+function moveTableRow(document, blockId, rowId, direction) {
+  const table = tableResult(document, blockId);
+  if (!table) return unchanged(document, 'table-not-found');
+  const index = table.block.rows.findIndex(row => row.id === rowId);
+  if (index === -1) return unchanged(document, 'row-not-found');
+  const target = index + direction;
+  if (target < 0 || target >= table.block.rows.length || table.block.rows[target].isTotal !== table.block.rows[index].isTotal) return unchanged(document, 'row-cannot-move');
+  [table.block.rows[index], table.block.rows[target]] = [table.block.rows[target], table.block.rows[index]]; recalculateTableTotals(table.block);
+  return changed(table.nextDocument, { selectedRowId: rowId, index: target });
+}
+
+function deleteTableRow(document, blockId, rowId) {
+  const table = tableResult(document, blockId);
+  if (!table) return unchanged(document, 'table-not-found');
+  const index = table.block.rows.findIndex(row => row.id === rowId);
+  if (index === -1) return unchanged(document, 'row-not-found');
+  table.block.rows.splice(index, 1); recalculateTableTotals(table.block);
+  return changed(table.nextDocument, { selectedRowId: table.block.rows[Math.min(index, table.block.rows.length - 1)]?.id || null, index: Math.min(index, table.block.rows.length - 1) });
+}
+
+function addTableColumn(document, blockId, afterColumnId, makeId) {
+  const table = tableResult(document, blockId);
+  if (!table) return unchanged(document, 'table-not-found');
+  const columnIndex = table.block.columns.findIndex(column => column.id === afterColumnId);
+  if (afterColumnId && columnIndex === -1) return unchanged(document, 'column-not-found');
+  const index = columnIndex === -1 ? table.block.columns.length : columnIndex + 1;
+  const column = { id: makeId('column'), headingRuns: [{ text: `Column ${index + 1}` }], width: 100 / (table.block.columns.length + 1), format: 'text' };
+  table.block.columns.splice(index, 0, column);
+  table.block.rows.forEach(row => row.cells.splice(index, 0, { id: makeId('cell'), runs: [] })); recalculateTableTotals(table.block);
+  return changed(table.nextDocument, { selectedColumnId: column.id, index });
+}
+
+function moveTableColumn(document, blockId, columnId, direction) {
+  const table = tableResult(document, blockId);
+  if (!table) return unchanged(document, 'table-not-found');
+  const index = table.block.columns.findIndex(column => column.id === columnId);
+  if (index === -1) return unchanged(document, 'column-not-found');
+  const target = index + direction;
+  if (target < 0 || target >= table.block.columns.length) return unchanged(document, 'column-cannot-move');
+  [table.block.columns[index], table.block.columns[target]] = [table.block.columns[target], table.block.columns[index]];
+  table.block.rows.forEach(row => { [row.cells[index], row.cells[target]] = [row.cells[target], row.cells[index]]; }); recalculateTableTotals(table.block);
+  return changed(table.nextDocument, { selectedColumnId: columnId, index: target });
+}
+
+function deleteTableColumn(document, blockId, columnId) {
+  const table = tableResult(document, blockId);
+  if (!table) return unchanged(document, 'table-not-found');
+  const index = table.block.columns.findIndex(column => column.id === columnId);
+  if (index === -1) return unchanged(document, 'column-not-found');
+  if (table.block.columns.length <= 1) return unchanged(document, 'final-column');
+  table.block.columns.splice(index, 1); table.block.rows.forEach(row => row.cells.splice(index, 1)); recalculateTableTotals(table.block);
+  return changed(table.nextDocument, { selectedColumnId: table.block.columns[Math.min(index, table.block.columns.length - 1)].id, index: Math.min(index, table.block.columns.length - 1) });
+}
+
+function setTableColumnFormat(document, blockId, columnId, format) {
+  const table = tableResult(document, blockId);
+  if (!table) return unchanged(document, 'table-not-found');
+  const column = table.block.columns.find(candidate => candidate.id === columnId);
+  if (!column) return unchanged(document, 'column-not-found');
+  if (!['text', 'number', 'gbp'].includes(format)) return unchanged(document, 'unsupported-column-format');
+  column.format = format;
+  delete column.numeric;
+  recalculateTableTotals(table.block);
+  return changed(table.nextDocument, { selectedColumnId: columnId, format });
+}
+
+function convertBlockStyle(document, blockId, style, makeId) {
+  const found = findDocumentBlock(document, blockId);
+  if (!found) return unchanged(document, 'block-not-found');
+  if (!['heading', 'paragraph', 'bulletList', 'numberList'].includes(found.block.type)) return unchanged(document, 'unsupported-block-type');
+  const nextDocument = clone(document), block = findDocumentBlock(nextDocument, blockId).block;
+  if (style.startsWith('heading')) { block.type = 'heading'; block.level = Number(style.at(-1)); delete block.items; block.runs ||= []; }
+  else if (style === 'body') { block.type = 'paragraph'; delete block.items; block.runs ||= []; }
+  else if (['bulletList', 'numberList'].includes(style)) { block.items ||= [{ id: makeId('item'), level: 1, runs: block.runs || [] }]; block.type = style; delete block.runs; }
+  else return unchanged(document, 'unsupported-style');
+  return changed(nextDocument, { selectedBlockId: blockId, blockType: block.type });
+}
+
 
 const SCHEMA_VERSION = 5;
 const METADATA_KEYS = ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'];
@@ -325,9 +599,8 @@ const makeId = (value, prefix = 'id') => IDENTIFIER.test(value || '') ? value : 
 
 const safeHref = value => typeof value === 'string' && /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*$)/i.test(value) ? value : null;
 const safeImageSrc = value => {
-  if (typeof value !== 'string') return null;
-  try { const url = new URL(value); return url.protocol === 'https:' && /\.(png|jpe?g|gif|webp)$/i.test(url.pathname) ? url.href : null; }
-  catch { return null; }
+  const result = validateImageSource(value);
+  return result.ok ? result.url : null;
 };
 
 function normaliseRuns(runs) {
@@ -386,7 +659,7 @@ function normaliseBlock(block) {
     output.rows = (Array.isArray(block.rows) ? block.rows : []).map((row, ri) => ({ id: makeId(row?.id, 'row'), isTotal: row?.isTotal === true, cells: output.columns.map((column, ci) => normaliseCell(row?.cells?.[ci], `${output.id}-${ri}-${column.id}`)) }));
     recalculateTableTotals(output);
   } else {
-    output.src = safeImageSrc(block.src); output.alt = String(block.alt ?? ''); output.captionRuns = normaliseRuns(block.captionRuns || [{ text: block.caption ?? '' }]); output.width = Math.min(100, Math.max(20, Number(block.width) || 100));
+    output.src = safeImageSrc(block.src); output.alt = String(block.alt ?? ''); output.captionRuns = normaliseRuns(block.captionRuns || [{ text: block.caption ?? '' }]); output.width = normalizeImageWidth(block.width);
   }
   return output;
 }
@@ -410,7 +683,7 @@ function *runContainers(group) {
 }
 const hasReview = group => [...runContainers(group)].some(container => container.runs.some(run => run.highlight));
 const stableAnchor = entity => `anchor-${entity.id}`;
-function validateDocument(document) { if (![1,2,3,4,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !block.src) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source'); return result; }
+function validateDocument(document) { if (![1,2,3,4,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !validateImageInput({ source: block.src, altText: block.alt, width: block.width }).ok) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source and alternative text'); return result; }
 
 const eligibleText = step => [...runContainers(step)].filter(x => (x.kind === 'block' && x.block.type === 'paragraph') || ['listItem','tableCaption','imageCaption'].includes(x.kind)).map(x => x.runs.map(r => r.text).join('').trim()).find(Boolean) || '';
 function transactionProposals(document) { return normaliseDocument(document).steps.map((step, index) => ({ id:`proposal-${step.id}`, stepId:step.id, title:`Step ${index+1}. ${step.title}`, anchor:stableAnchor(step), summary:step.summary.trim() || eligibleText(step) })); }
@@ -711,24 +984,26 @@ function commit(mutator,{focus=true}={}){flushAll();const before=structuredClone
 function bindEditing(){document.querySelectorAll('[data-editable-group-id]').forEach(x=>{x.addEventListener('pointerdown',e=>{if(!e.target.closest('button'))setActive(e.target)});x.addEventListener('click',blankStepClick)});document.querySelectorAll('[contenteditable=true]').forEach(el=>{el.addEventListener('focusin',()=>setActive(el));el.addEventListener('input',()=>{repagination.cancel();schedule(el)});el.addEventListener('blur',()=>{flushTarget(el);editorSelection.restoreFocus=false});el.addEventListener('paste',e=>insertPlainText(e,document))});
  document.querySelectorAll('[data-group-title]').forEach(el=>{const sync=()=>syncStepTitle(el);el.addEventListener('focusin',()=>setActive(el));el.addEventListener('input',()=>{repagination.cancel();const old=pendingStepTitles.get(el.dataset.groupTitle);if(old)clearTimeout(old.timer);pendingStepTitles.set(el.dataset.groupTitle,{el,timer:setTimeout(sync,450)})});el.addEventListener('blur',()=>{sync();editorSelection.restoreFocus=false});el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el.blur()}else if(e.key==='Tab')editorSelection.restoreFocus=false})});
  document.querySelectorAll('.list-block > :is(ol,ul) > li[data-container="item"]').forEach(el=>el.addEventListener('keydown',listKeydown));document.querySelectorAll('[data-type="heading"] > [data-container="block"]').forEach(el=>el.addEventListener('keydown',headingEnter));document.querySelectorAll('[data-container=cell]').forEach(el=>el.addEventListener('keydown',tableTab));document.querySelectorAll('[data-block-move]').forEach(b=>b.onclick=()=>moveBlock(b.closest('[data-block-id]').dataset.blockId,b.dataset.blockMove));document.querySelectorAll('[data-block-delete]').forEach(b=>b.onclick=()=>deleteBlock(b.closest('[data-block-id]').dataset.blockId));document.querySelectorAll('.toc a').forEach(a=>a.onclick=e=>{e.preventDefault();navigateToAnchor(a.getAttribute('href').slice(1))})}
-function headingEnter(e){if(e.key!=='Enter'||e.shiftKey)return;e.preventDefault();const el=e.currentTarget;flushTarget(el);const {group,block}=findBlock(el.closest('[data-block-id]').dataset.blockId);if(!group||block?.type!=='heading')return;const id=newId('block'),index=group.blocks.indexOf(block);commit(()=>{group.blocks.splice(index+1,0,{id,type:'paragraph',runs:[]});Object.assign(editorSelection,{activeBlockId:id,blockType:'paragraph',container:'block',itemId:null,row:null,column:null,offsets:[0,0]})})}
+function headingEnter(e){if(e.key!=='Enter'||e.shiftKey)return;e.preventDefault();const el=e.currentTarget;flushTarget(el);const {group,block}=findBlock(el.closest('[data-block-id]').dataset.blockId);if(!group||block?.type!=='heading')return;applyDocumentOperation(document=>insertBlockOperation(document,{groupId:group.id,referenceBlockId:block.id,position:'after'},'paragraph',2,newId),selectOperationBlock)}
 function listKeydown(e){if(e.key==='Enter')return listEnter(e);if(e.key!=='Backspace')return;const el=e.currentTarget;flushTarget(el);const {block}=findBlock(el.closest('[data-block-id]').dataset.blockId),index=block?.items?.findIndex(item=>item.id===el.dataset.itemId);if(!Number.isInteger(index)||index<1||runText(block.items[index].runs))return;e.preventDefault();commit(()=>{const target=removeEmptyListItem(block,index);editorSelection.itemId=target.itemId;editorSelection.offsets=[target.offset,target.offset]})}
 function listEnter(e){if(e.key!=='Enter')return;e.preventDefault();const el=e.currentTarget;flushTarget(el);const {block}=findBlock(el.closest('[data-block-id]').dataset.blockId),index=block.items.findIndex(i=>i.id===el.dataset.itemId);const offsets=getOffsets(el)||[0,0],text=runText(block.items[index].runs);if(!text.trim()){commit(()=>{block.items.splice(index,1);if(!block.items.length){block.type='paragraph';block.runs=[];delete block.items}});return}const id=newId('item');commit(()=>{const item=block.items[index],[before,after]=splitListRuns(item.runs,offsets[0]);item.runs=before;block.items.splice(index+1,0,{id,level:item.level,runs:after});editorSelection.itemId=id;editorSelection.offsets=[0,0]})}
-function tableTab(e){if(e.key!=='Tab')return;const cells=[...document.querySelectorAll(`[data-block-id="${editorSelection.activeBlockId}"] [data-container=cell]`)],i=cells.indexOf(e.currentTarget);if(e.shiftKey||i<cells.length-1)return;e.preventDefault();flushTarget(e.currentTarget);const {block}=findBlock(editorSelection.activeBlockId);commit(()=>{const insert=insertTableRowBeforeTotals(block,newId);editorSelection.row=insert;editorSelection.column=0;editorSelection.offsets=[0,0]})}
+function tableTab(e){if(e.key!=='Tab')return;const cells=[...document.querySelectorAll(`[data-block-id="${editorSelection.activeBlockId}"] [data-container=cell]`)],i=cells.indexOf(e.currentTarget);if(e.shiftKey||i<cells.length-1)return;e.preventDefault();flushTarget(e.currentTarget);const {block}=findBlock(editorSelection.activeBlockId),lastDataRow=block?.rows?.findLast(row=>!row.isTotal);applyDocumentOperation(document=>addTableRow(document,block.id,lastDataRow?.id,newId),result=>{editorSelection.row=result.index;editorSelection.column=0;editorSelection.offsets=[0,0]})}
 const getOffsets=el=>containedSelectionOffsets(el,getSelection(),document);
 function resolveRuns(){const {block}=findBlock(editorSelection.activeBlockId);if(!block)return null;if(editorSelection.container==='block')return block.runs;if(editorSelection.container==='item')return block.items.find(x=>x.id===editorSelection.itemId)?.runs;if(editorSelection.container==='caption'||editorSelection.container==='image-caption')return block.captionRuns;if(editorSelection.container==='heading')return block.columns[editorSelection.column]?.headingRuns;if(editorSelection.container==='cell')return block.rows[editorSelection.row]?.cells[editorSelection.column]?.runs;return null}
 function replaceResolved(runs){const {block}=findBlock(editorSelection.activeBlockId);if(editorSelection.container==='block')block.runs=runs;else if(editorSelection.container==='item')block.items.find(x=>x.id===editorSelection.itemId).runs=runs;else if(['caption','image-caption'].includes(editorSelection.container))block.captionRuns=runs;else if(editorSelection.container==='heading')block.columns[editorSelection.column].headingRuns=runs;else if(editorSelection.container==='cell')block.rows[editorSelection.row].cells[editorSelection.column].runs=runs}
 function transformSelection(kind,value,{useCaptured=false}={}){flushAll();if(!useCaptured){const offsets=getOffsets(activeEditable());if(offsets)editorSelection.offsets=offsets}const runs=resolveRuns();if(!runs||!editorSelection.offsets)return false;if(kind==='highlight'&&editorSelection.offsets[0]===editorSelection.offsets[1])editorSelection.offsets=[0,runText(runs).length];commit(()=>replaceResolved(transformRuns(runs,editorSelection.offsets,kind,value)));return true}
 function defaultInsertionContext(){const group=selectedEditableGroup();return group?{groupId:group.id,referenceBlockId:editorSelection.activeBlockId,position:'after'}:null}
-function insertBlock(type,context=defaultInsertionContext(),headingLevel=2){if(typeof type!=='string'||!['paragraph','heading','bulletList','numberList','table'].includes(type))return false;const group=[...state.steps,...state.appendices].find(x=>x.id===context?.groupId);if(!group)return false;const index=insertionIndex(group,context);if(index<0)return false;const id=newId('block');let block={id,type,runs:[]};if(type==='heading')block.level=Math.min(4,Math.max(1,Number(headingLevel)||2));if(type.endsWith('List'))block={id,type,items:[{id:newId('item'),level:1,runs:[]}]};if(type==='table')block={id,type,captionRuns:[{text:'Table caption'}],columns:[{id:newId('column'),headingRuns:[{text:'Column 1'}],width:50},{id:newId('column'),headingRuns:[{text:'Column 2'}],width:50}],rows:[{id:newId('row'),cells:[{id:newId('cell'),runs:[]},{id:newId('cell'),runs:[]}]}]};commit(()=>{group.blocks.splice(index,0,block);editorSelection.activeGroupId=group.id;editorSelection.activeGroupType=state.steps.includes(group)?'step':'appendix';editorSelection.activeStepId=state.steps.includes(group)?group.id:null;editorSelection.activeBlockId=id;editorSelection.blockType=type;editorSelection.container=type==='table'?'cell':type.endsWith('List')?'item':'block';editorSelection.row=0;editorSelection.column=0;editorSelection.itemId=block.items?.[0]?.id;editorSelection.offsets=[0,0]});return true}
-function moveBlock(id,direction){const {group}=findBlock(id);if(!group)return;const i=group.blocks.findIndex(x=>x.id===id),j=direction==='before'?i-1:i+1;if(j<0||j>=group.blocks.length)return;commit(()=>{[group.blocks[i],group.blocks[j]]=[group.blocks[j],group.blocks[i]];editorSelection.activeBlockId=id;announce(`Block moved to position ${j+1}`)})}
-function deleteBlock(id){const {group,block}=findBlock(id);if(!group||!block)return false;const label=blockTypeLabel(block.type);commit(()=>{const result=removeBlockFromGroup(group,id,newId),target=result.target;Object.assign(editorSelection,{activeBlockId:target.id,blockType:target.type,container:null,row:null,column:null,itemId:null,offsets:[0,0]});if(['heading','paragraph'].includes(target.type))editorSelection.container='block';else if(target.type.endsWith('List')){editorSelection.container='item';editorSelection.itemId=target.items[0]?.id||null}else if(target.type==='table'){editorSelection.container='cell';editorSelection.row=0;editorSelection.column=0}announce(`${label[0].toUpperCase()+label.slice(1)} deleted`)});return true}
+function applyDocumentOperation(createResult,onChanged=()=>{}){flushAll();const result=createResult(state);if(!result.changed)return false;commit(()=>{state=result.document;onChanged(result)});return true}
+function selectOperationBlock(result){const block=result.block||result.selectedBlock;Object.assign(editorSelection,{activeGroupId:result.selectedGroupId||editorSelection.activeGroupId,activeGroupType:result.selectedGroupType||editorSelection.activeGroupType,activeStepId:result.selectedGroupType==='step'?result.selectedGroupId:null,activeBlockId:result.selectedBlockId,blockType:block?.type||result.blockType||null,container:block?.type==='table'?'cell':block?.type?.endsWith('List')?'item':'block',row:0,column:0,itemId:block?.items?.[0]?.id||null,offsets:[0,0]})}
+function insertBlock(type,context=defaultInsertionContext(),headingLevel=2){return applyDocumentOperation(document=>insertBlockOperation(document,context,type,headingLevel,newId),selectOperationBlock)}
+function moveBlock(id,direction){return applyDocumentOperation(document=>moveBlockOperation(document,id,direction==='before'?-1:1),result=>{editorSelection.activeBlockId=id;announce(`Block moved to position ${result.index+1}`)})}
+function deleteBlock(id){const found=findBlock(id);if(!found.block)return false;const label=blockTypeLabel(found.block.type);return applyDocumentOperation(document=>deleteBlockOperation(document,id,newId),result=>{selectOperationBlock(result);announce(`${label[0].toUpperCase()+label.slice(1)} deleted`)})}
 function selectGroup(group,type,{blockId=null}={}){Object.assign(editorSelection,{activeGroupId:group?.id||null,activeGroupType:group?type:null,activeStepId:type==='step'?group?.id||null:null,activeBlockId:blockId,blockType:blockId?'paragraph':null,container:blockId?'block':null,offsets:[0,0]})}
-function manageStep(action){flushAll();const index=state.steps.findIndex(x=>x.id===editorSelection.activeStepId);if(index<0)return;if(action==='deleteStep'){if(!confirmStepDeletion(state.steps,index,confirm))return;return commit(()=>{state.steps.splice(index,1);selectGroup(state.steps[Math.min(index,state.steps.length-1)],'step');announce('Step deleted')})}const target=index+(action==='moveStepUp'?-1:1);if(target<0||target>=state.steps.length)return;commit(()=>{[state.steps[index],state.steps[target]]=[state.steps[target],state.steps[index]];announce(`Step moved to position ${target+1}`)})}
-function addStep(where='after'){const index=state.steps.findIndex(x=>x.id===editorSelection.activeStepId);if(index<0)return;const id=newId('step'),blockId=newId('block'),at=index+(where==='after'?1:0);commit(()=>{const group={id,title:'New transaction step',blocks:[{id:blockId,type:'paragraph',runs:[]}]};state.steps.splice(at,0,group);selectGroup(group,'step',{blockId})})}
-function addAppendix(){const id=newId('appendix'),blockId=newId('block');commit(()=>{const group={id,title:'New appendix',blocks:[{id:blockId,type:'paragraph',runs:[]}]};state.appendices.push(group);selectGroup(group,'appendix');announce(`${appendixLabel(state.appendices.length-1)} added`)})}
-function manageAppendix(action){const index=state.appendices.findIndex(x=>x.id===editorSelection.activeGroupId);if(index<0)return;const appendix=state.appendices[index];if(action==='deleteAppendix'){if(!confirm(`Delete ${appendixLabel(index)}: ${appendix.title}? This can be undone.`))return;return commit(()=>{state.appendices.splice(index,1);const target=state.appendices[Math.min(index,state.appendices.length-1)];if(target)selectGroup(target,'appendix');else selectGroup(state.steps.at(-1),'step');announce('Appendix deleted')})}const target=index+(action==='moveAppendixUp'?-1:1);if(target<0||target>=state.appendices.length)return;commit(()=>{[state.appendices[index],state.appendices[target]]=[state.appendices[target],state.appendices[index]];announce(`Appendix moved to ${appendixLabel(target)}`)})}
-function tableMutation(action){const {block}=findBlock(editorSelection.activeBlockId);if(block?.type!=='table')return false;const rowIndex=editorSelection.row==null?NaN:Number(editorSelection.row),columnIndex=editorSelection.column==null?NaN:Number(editorSelection.column),selectedRow=block.rows[rowIndex],selectedColumn=block.columns[columnIndex];let announcement='';if(action==='moveRowUp'||action==='moveRowDown'){const target=rowIndex+(action==='moveRowUp'?-1:1);if(!selectedRow||target<0||target>=block.rows.length||block.rows[target].isTotal!==selectedRow.isTotal)return false;commit(()=>{moveTableRow(block,rowIndex,action==='moveRowUp'?-1:1);editorSelection.row=target;recalculateTableTotals(block);announcement=`Row moved to position ${target+1}`;announce(announcement)});return true}if(action==='moveColumnLeft'||action==='moveColumnRight'){const target=columnIndex+(action==='moveColumnLeft'?-1:1);if(!selectedColumn||target<0||target>=block.columns.length)return false;commit(()=>{moveTableColumn(block,columnIndex,action==='moveColumnLeft'?-1:1);editorSelection.column=target;recalculateTableTotals(block);announcement=`Column moved to position ${target+1}`;announce(announcement)});return true}if(action==='addRow')commit(()=>{editorSelection.row=insertTableRowAfter(block,selectedRow?rowIndex:NaN,newId);editorSelection.column=Math.min(Math.max(0,columnIndex||0),block.columns.length-1);editorSelection.offsets=[0,0];recalculateTableTotals(block)});else if(action==='addColumn')commit(()=>{editorSelection.column=insertTableColumnAfter(block,selectedColumn?columnIndex:NaN,newId);editorSelection.row=Number.isInteger(rowIndex)?rowIndex:0;editorSelection.offsets=[0,0];recalculateTableTotals(block)});else if(action==='removeRow'&&selectedRow)commit(()=>{block.rows.splice(rowIndex,1);editorSelection.row=block.rows.length?Math.min(rowIndex,block.rows.length-1):null;recalculateTableTotals(block)});else if(action==='removeColumn'&&block.columns.length>1&&selectedColumn)commit(()=>{block.columns.splice(columnIndex,1);block.rows.forEach(r=>r.cells.splice(columnIndex,1));editorSelection.column=Math.min(columnIndex,block.columns.length-1);recalculateTableTotals(block)});else return false;return true}
+function manageStep(action){const stepId=editorSelection.activeStepId,index=state.steps.findIndex(step=>step.id===stepId);if(index<0)return false;if(action==='deleteStep'){if(!confirmStepDeletion(state.steps,index,confirm))return false;return applyDocumentOperation(document=>deleteStepOperation(document,stepId),result=>{selectGroup(result.document.steps.find(step=>step.id===result.selectedStepId),'step');announce('Step deleted')})}const direction=action==='moveStepUp'?-1:1;return applyDocumentOperation(document=>moveStepOperation(document,stepId,direction),result=>announce(`Step moved to position ${result.index+1}`))}
+function addStep(where='after'){const ids={stepId:newId('step'),blockId:newId('block')};return applyDocumentOperation(document=>addStepOperation(document,editorSelection.activeStepId,where,ids),result=>selectGroup(result.document.steps.find(step=>step.id===result.selectedStepId),'step',{blockId:result.selectedBlockId}))}
+function addAppendix(){const ids={appendixId:newId('appendix'),blockId:newId('block')};return applyDocumentOperation(document=>addAppendixOperation(document,ids),result=>{selectGroup(result.document.appendices.find(appendix=>appendix.id===result.selectedAppendixId),'appendix',{blockId:result.selectedBlockId});announce(`${appendixLabel(result.index)} added`)})}
+function manageAppendix(action){const appendixId=editorSelection.activeGroupId,index=state.appendices.findIndex(appendix=>appendix.id===appendixId);if(index<0)return false;const appendix=state.appendices[index];if(action==='deleteAppendix'){if(!confirm(`Delete ${appendixLabel(index)}: ${appendix.title}? This can be undone.`))return false;return applyDocumentOperation(document=>deleteAppendixOperation(document,appendixId),result=>{const target=result.selectedAppendixId?result.document.appendices.find(item=>item.id===result.selectedAppendixId):result.document.steps.find(item=>item.id===result.selectedStepId);selectGroup(target,result.selectedAppendixId?'appendix':'step');announce('Appendix deleted')})}const direction=action==='moveAppendixUp'?-1:1;return applyDocumentOperation(document=>moveAppendixOperation(document,appendixId,direction),result=>announce(`Appendix moved to ${appendixLabel(result.index)}`))}
+function tableMutation(action){const {block}=findBlock(editorSelection.activeBlockId);if(block?.type!=='table')return false;const row=block.rows[Number(editorSelection.row)],column=block.columns[Number(editorSelection.column)],direction=action.endsWith('Up')||action.endsWith('Left')?-1:1;let operation;if(action==='moveRowUp'||action==='moveRowDown')operation=document=>moveTableRow(document,block.id,row?.id,direction);else if(action==='moveColumnLeft'||action==='moveColumnRight')operation=document=>moveTableColumn(document,block.id,column?.id,direction);else if(action==='addRow')operation=document=>addTableRow(document,block.id,row?.id,newId);else if(action==='addColumn')operation=document=>addTableColumn(document,block.id,column?.id,newId);else if(action==='removeRow')operation=document=>deleteTableRow(document,block.id,row?.id);else if(action==='removeColumn')operation=document=>deleteTableColumn(document,block.id,column?.id);else return false;return applyDocumentOperation(operation,result=>{if('selectedRowId'in result){const next=findBlock(block.id).block;editorSelection.row=next.rows.findIndex(item=>item.id===result.selectedRowId);editorSelection.column=Math.min(Math.max(0,Number(editorSelection.column)||0),next.columns.length-1)}if('selectedColumnId'in result){const next=findBlock(block.id).block;editorSelection.column=next.columns.findIndex(item=>item.id===result.selectedColumnId);editorSelection.row=Math.max(0,Number(editorSelection.row)||0)}editorSelection.offsets=[0,0];if(action.startsWith('move'))announce(`${action.includes('Row')?'Row':'Column'} moved to position ${result.index+1}`)})}
 function linkPicker(){captureSelection();const dialog=$('#link-picker'),list=$('#link-destination'),destinations=[...state.steps.map((group,index)=>({group,label:`Step ${index+1}. ${group.title}`})),...state.appendices.map((group,index)=>({group,label:`${appendixLabel(index)}. ${group.title}`}))];list.innerHTML=destinations.map(({group,label})=>`<option value="#${stableAnchor(group)}">${esc(label)}</option>`).join('');dialog.showModal()}
 let insertionContext=null,imageInsertionContext=null;
 function blankStepClick(event){
@@ -749,10 +1024,10 @@ function blankStepClick(event){
 function addImage(context=defaultInsertionContext()){if(![...state.steps,...state.appendices].some(group=>group.id===context?.groupId))return;imageInsertionContext=context;const form=$('#image-form'),error=$('#image-form-error');form.reset();error.hidden=true;error.textContent='';$('#image-dialog').showModal();form.elements.src.focus()}
 function historyChangeTarget(next){if(!next)return null;const currentGroups=allGroups(),nextGroups=[...next.sections,...next.steps,...next.appendices];for(const nextGroup of nextGroups){const currentGroup=currentGroups.find(group=>group.id===nextGroup.id);if(!currentGroup)return {groupId:nextGroup.id};if(currentGroup.title!==nextGroup.title)return {groupId:currentGroup.id};const ids=new Set([...currentGroup.blocks.map(block=>block.id),...nextGroup.blocks.map(block=>block.id)]);for(const id of ids){const before=currentGroup.blocks.find(block=>block.id===id),after=nextGroup.blocks.find(block=>block.id===id);if(JSON.stringify(before)!==JSON.stringify(after))return {groupId:currentGroup.id,blockId:before?.id||null}}}const removed=currentGroups.find(group=>!nextGroups.some(item=>item.id===group.id));return removed?{groupId:removed.id}:null}
 function revealHistoryChange(next){const target=historyChangeTarget(next);if(!target)return;const node=(target.blockId&&document.querySelector(`[data-block-id="${CSS.escape(target.blockId)}"]`))||document.querySelector(`[data-editable-group-id="${CSS.escape(target.groupId)}"]`)||document.querySelector(`.pagedjs_page[data-group-id="${CSS.escape(target.groupId)}"]`);const page=node?.closest('.pagedjs_page')||(node?.matches('.pagedjs_page')?node:null);if(!page)return;const pages=[...document.querySelectorAll('.pagedjs_page')];setCurrentPage(pages.indexOf(page)+1,{scroll:false,focus:false});page.scrollIntoView({behavior:'auto',block:'center'})}
-function command(action){flushAll();if(action==='undo'||action==='redo'){pending.forEach(x=>clearTimeout(x.timer));pending.clear();const next=action==='undo'?history.peekUndo():history.peekRedo();revealHistoryChange(next);state=action==='undo'?history.undo():history.redo();markDirty();if(![...state.steps,...state.appendices].some(x=>x.id===editorSelection.activeGroupId)){const group=state.steps[0]||state.appendices[0];selectGroup(group,state.steps.includes(group)?'step':'appendix')}return render()}if(action==='addStepBefore'||action==='addStepAfter')return addStep(action.endsWith('After')?'after':'before');if(['moveStepUp','moveStepDown','deleteStep'].includes(action))return manageStep(action);if(action==='addAppendix')return addAppendix();if(['moveAppendixUp','moveAppendixDown','deleteAppendix'].includes(action))return manageAppendix(action);const insertion=routeInsertionCommand(action);if(insertion?.kind==='table')return tableMutation(insertion.action);if(insertion?.kind==='block'&&typeof insertion.blockType==='string')return insertBlock(insertion.blockType);if(action==='addImage')return addImage();if(action==='highlight'||action==='unlink')return transformSelection(action==='unlink'?'unlink':'highlight');if(action==='link')return linkPicker();if(editorSelection.blockType==='image')return;const {block}=findBlock(editorSelection.activeBlockId);if(!block||!['heading','paragraph','bulletList','numberList'].includes(block.type))return;if(canApplyBlockStyle(block.type,action))commit(()=>{if(action.startsWith('heading')){block.type='heading';block.level=+action.at(-1)}else if(action==='body'){block.type='paragraph'}else{block.items=block.items||[{id:newId('item'),level:1,runs:block.runs||[]}];block.type=action;delete block.runs}})}
+function command(action){flushAll();if(action==='undo'||action==='redo'){pending.forEach(x=>clearTimeout(x.timer));pending.clear();const next=action==='undo'?history.peekUndo():history.peekRedo();revealHistoryChange(next);state=action==='undo'?history.undo():history.redo();markDirty();if(![...state.steps,...state.appendices].some(x=>x.id===editorSelection.activeGroupId)){const group=state.steps[0]||state.appendices[0];selectGroup(group,state.steps.includes(group)?'step':'appendix')}return render()}if(action==='addStepBefore'||action==='addStepAfter')return addStep(action.endsWith('After')?'after':'before');if(['moveStepUp','moveStepDown','deleteStep'].includes(action))return manageStep(action);if(action==='addAppendix')return addAppendix();if(['moveAppendixUp','moveAppendixDown','deleteAppendix'].includes(action))return manageAppendix(action);const insertion=routeInsertionCommand(action);if(insertion?.kind==='table')return tableMutation(insertion.action);if(insertion?.kind==='block'&&typeof insertion.blockType==='string')return insertBlock(insertion.blockType);if(action==='addImage')return addImage();if(action==='highlight'||action==='unlink')return transformSelection(action==='unlink'?'unlink':'highlight');if(action==='link')return linkPicker();if(editorSelection.blockType==='image')return;const {block}=findBlock(editorSelection.activeBlockId);if(!block||!['heading','paragraph','bulletList','numberList'].includes(block.type))return;if(canApplyBlockStyle(block.type,action))return applyDocumentOperation(document=>convertBlockStyle(document,block.id,action,newId),result=>{editorSelection.blockType=result.blockType})}
 function announce(message){$('#editor-status').textContent='';requestAnimationFrame(()=>$('#editor-status').textContent=message)}
 function updateControls(){const i=state.steps.findIndex(x=>x.id===editorSelection.activeStepId),step=i>=0,appendixIndex=editorSelection.activeGroupType==='appendix'?state.appendices.findIndex(x=>x.id===editorSelection.activeGroupId):-1,editable=!!selectedEditableGroup();document.querySelectorAll('[data-command=moveStepUp]').forEach(x=>x.disabled=!step||i===0);document.querySelectorAll('[data-command=moveStepDown]').forEach(x=>x.disabled=!step||i===state.steps.length-1);document.querySelectorAll('[data-command=deleteStep]').forEach(x=>x.disabled=!step||state.steps.length===1);document.querySelectorAll('[data-requires-step]').forEach(x=>x.disabled=!step);document.querySelectorAll('[data-requires-group]').forEach(x=>x.disabled=!editable);document.querySelectorAll('[data-command=moveAppendixUp]').forEach(x=>x.disabled=appendixIndex<=0);document.querySelectorAll('[data-command=moveAppendixDown]').forEach(x=>x.disabled=appendixIndex<0||appendixIndex===state.appendices.length-1);document.querySelectorAll('[data-command=deleteAppendix]').forEach(x=>x.disabled=appendixIndex<0);const runs=resolveRuns(),text=!!runs;document.querySelectorAll('[data-text-command]').forEach(x=>x.disabled=!text);const {block}=findBlock(editorSelection.activeBlockId),style=$('#style'),choices=blockStyleChoices(block?.type);if(style.dataset.choices!==JSON.stringify(choices)){style.replaceChildren(...choices.map(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;return option}));style.dataset.choices=JSON.stringify(choices)}document.querySelectorAll('[data-table-command]').forEach(x=>x.hidden=block?.type!=='table');document.querySelectorAll('[data-table-group]').forEach(x=>x.hidden=block?.type!=='table');style.disabled=!text;if(block?.type==='heading')style.value=`heading${block.level}`;else if(block?.type==='paragraph')style.value='body';else if(['bulletList','numberList'].includes(block?.type))style.value=block.type;const row=editorSelection.row==null?NaN:Number(editorSelection.row),column=editorSelection.column==null?NaN:Number(editorSelection.column),selectedRow=block?.rows?.[row];document.querySelectorAll('[data-command=moveRowUp]').forEach(x=>x.disabled=!selectedRow||row===0||block.rows[row-1]?.isTotal!==selectedRow.isTotal);document.querySelectorAll('[data-command=moveRowDown]').forEach(x=>x.disabled=!selectedRow||row===block.rows.length-1||block.rows[row+1]?.isTotal!==selectedRow.isTotal);document.querySelectorAll('[data-command=moveColumnLeft]').forEach(x=>x.disabled=!block?.columns?.[column]||column===0);document.querySelectorAll('[data-command=moveColumnRight]').forEach(x=>x.disabled=!block?.columns?.[column]||column===block.columns.length-1);const format=$('#column-format');format.disabled=!block?.columns?.[column];if(block?.columns?.[column])format.value=tableColumnFormat(block.columns[column])}
-document.querySelectorAll('[data-command]').forEach(b=>{b.addEventListener('pointerdown',e=>{if(b.dataset.textCommand!==undefined){e.preventDefault();captureSelection()}});b.addEventListener('click',()=>command(b.dataset.command))});$('#style').onchange=e=>command(e.target.value);$('#column-format').onchange=e=>{const {block}=findBlock(editorSelection.activeBlockId),column=block?.columns?.[editorSelection.column==null?NaN:Number(editorSelection.column)];if(!column)return;commit(()=>{column.format=e.target.value;delete column.numeric;recalculateTableTotals(block);announce(`Column format changed to ${e.target.selectedOptions[0].textContent}`)})};const linkDialog=$('#link-picker');let applyingLink=false;$('#link-form').onsubmit=e=>{e.preventDefault();const external=$('#external-link').value,href=validatedLink(external,$('#link-destination').value);if(href){applyingLink=true;linkDialog.close();transformSelection('link',href,{useCaptured:true});applyingLink=false;editorSelection.offsets=null}else announce('Enter a valid HTTPS, HTTP, mailto, or internal destination.')};linkDialog.addEventListener('close',()=>{if(!applyingLink)editorSelection.offsets=null;$('#link-form').reset()});
+document.querySelectorAll('[data-command]').forEach(b=>{b.addEventListener('pointerdown',e=>{if(b.dataset.textCommand!==undefined){e.preventDefault();captureSelection()}});b.addEventListener('click',()=>command(b.dataset.command))});$('#style').onchange=e=>command(e.target.value);$('#column-format').onchange=e=>{const {block}=findBlock(editorSelection.activeBlockId),column=block?.columns?.[editorSelection.column==null?NaN:Number(editorSelection.column)];if(!column)return;applyDocumentOperation(document=>setTableColumnFormat(document,block.id,column.id,e.target.value),()=>announce(`Column format changed to ${e.target.selectedOptions[0].textContent}`))};const linkDialog=$('#link-picker');let applyingLink=false;$('#link-form').onsubmit=e=>{e.preventDefault();const external=$('#external-link').value,href=validatedLink(external,$('#link-destination').value);if(href){applyingLink=true;linkDialog.close();transformSelection('link',href,{useCaptured:true});applyingLink=false;editorSelection.offsets=null}else announce('Enter a valid HTTPS, HTTP, mailto, or internal destination.')};linkDialog.addEventListener('close',()=>{if(!applyingLink)editorSelection.offsets=null;$('#link-form').reset()});
 const insertionChooser=$('#insertion-chooser'),templateLoader=new EncryptedTemplateLoader();
 function showInsertionPanel(name,focus=true){insertionChooser.querySelectorAll('[data-insertion-panel]').forEach(panel=>panel.hidden=panel.dataset.insertionPanel!==name);if(focus)queueMicrotask(()=>insertionChooser.querySelector(`[data-insertion-panel="${name}"] button, [data-insertion-panel="${name}"] input`)?.focus())}
 function finishInsertion(callback){const context=insertionContext;insertionContext=null;insertionChooser.close();callback(context)}
@@ -763,13 +1038,13 @@ insertionChooser.querySelectorAll('[data-insert-heading]').forEach(button=>butto
 function renderTemplates(templates){const choices=$('#default-template-choices');choices.replaceChildren(...templates.map(template=>{const button=document.createElement('button');button.type='button';button.textContent=template.header;button.onclick=()=>finishInsertion(context=>insertTemplate(template,context));return button}));$('#default-unlock').hidden=true;choices.querySelector('button')?.focus()}
 async function openDefaults(){const error=$('#default-error');error.hidden=true;if(templateLoader.cached){renderTemplates(await templateLoader.unlock());return}$('#default-unlock').hidden=false;$('#default-password').focus()}
 $('#unlock-defaults').onclick=async()=>{const input=$('#default-password'),button=$('#unlock-defaults'),error=$('#default-error'),password=input.value;input.value='';button.disabled=true;error.hidden=true;try{renderTemplates(await templateLoader.unlock(defaultTemplateEnvelope,password))}catch(failure){error.textContent=failure.message;error.hidden=false;input.focus()}finally{button.disabled=false}};
-function insertTemplate(template,context){const group=[...state.steps,...state.appendices].find(item=>item.id===context?.groupId),at=insertionIndex(group,context);if(!group||at<0){announce('That insertion location is no longer available.');return false}const blocks=templateBlocks(template,newId);commit(()=>{group.blocks.splice(at,0,...blocks);Object.assign(editorSelection,{activeGroupId:group.id,activeGroupType:state.steps.includes(group)?'step':'appendix',activeStepId:state.steps.includes(group)?group.id:null,activeBlockId:blocks[0].id,blockType:'heading',container:'block',itemId:null,row:null,column:null,offsets:[0,template.header.length]})});announce(`${template.header} inserted`);return true}
+function insertTemplate(template,context){const blocks=templateBlocks(template,newId),inserted=applyDocumentOperation(document=>insertBlocks(document,context,blocks),result=>{selectOperationBlock(result);editorSelection.offsets=[0,template.header.length]});if(!inserted){announce('That insertion location is no longer available.');return false}announce(`${template.header} inserted`);return true}
 insertionChooser.addEventListener('close',()=>{insertionContext=null;$('#default-password').value='';showInsertionPanel('main',false)});
 bindCallouts();
 function persistDraft({quiet=false,updateUrl=false}={}){flushAll(false);clearTimeout(autosaveTimer);let result;try{result=saveDraft(state,loadedRevision)}catch(error){const indicator=$('#save-state');indicator.textContent='Save failed';indicator.className='save-state error';if(!quiet)alert(`Could not save this draft: ${error.message}`);return false}if(!result.ok){const indicator=$('#save-state');indicator.textContent='Newer draft in another tab';indicator.className='save-state error';if(!quiet)alert('This draft was changed in another tab. Reload before saving so that the newer draft and recovery copy are not overwritten.');return false}loadedRevision=result.revision;dirty=false;if(updateUrl)updateSnapshotUrl(result.record.document,window.location,window.history);const indicator=$('#save-state');indicator.textContent=`Saved locally ${new Date(result.record.savedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;indicator.className='save-state';return true}
 function versionsDialog(){const dialog=$('#versions-dialog'),list=$('#versions-list'),versions=listVersions();list.innerHTML=versions.length?versions.map(v=>`<div class="version-row"><span><b>${esc(v.label)}</b><small>${new Date(v.savedAt).toLocaleString()}</small></span><button type="button" data-restore-version="${esc(v.id)}">Restore</button><button type="button" data-delete-version="${esc(v.id)}">Delete</button></div>`).join(''):'<p>No saved versions yet.</p>';list.querySelectorAll('[data-restore-version]').forEach(button=>button.onclick=async()=>{const version=listVersions().find(v=>v.id===button.dataset.restoreVersion);if(!version)return;if(!persistDraft())return;state=normaliseDocument(version.document);history.commit(state);markDirty();dialog.close();await render({restore:false});announce('Saved version restored')});list.querySelectorAll('[data-delete-version]').forEach(button=>button.onclick=()=>{deleteVersion(button.dataset.deleteVersion);versionsDialog()});if(!dialog.open)dialog.showModal()}
 const propertiesDialog=$('#properties-dialog'),propertiesForm=$('#properties-form');$('#document-properties').onclick=()=>{for(const key of METADATA_KEYS)propertiesForm.elements[key].value=state.meta[key];propertiesDialog.showModal()};propertiesForm.onsubmit=async event=>{event.preventDefault();for(const key of METADATA_KEYS)propertiesForm.elements[key].value=propertiesForm.elements[key].value.trim();if(!propertiesForm.reportValidity())return;await commit(()=>{for(const key of METADATA_KEYS)state.meta[key]=propertiesForm.elements[key].value},{focus:false});propertiesDialog.close();announce('Document properties updated')};
-const imageDialog=$('#image-dialog'),imageForm=$('#image-form'),imageError=$('#image-form-error');imageDialog.addEventListener('close',()=>imageInsertionContext=null);imageForm.onsubmit=event=>{event.preventDefault();const src=imageForm.elements.src.value.trim(),alt=imageForm.elements.alt.value.trim(),caption=imageForm.elements.caption.value.trim(),widthValue=imageForm.elements.width.value;if(!src||!alt||!imageForm.checkValidity()){imageError.textContent='Enter an image URL and alternative text, and use a width between 20 and 100.';imageError.hidden=false;return}let parsed;try{parsed=new URL(src)}catch{imageError.textContent='Enter a complete, well-formed image URL.';imageError.hidden=false;return}if(parsed.protocol!=='https:'){imageError.textContent='Unsupported protocol. Image URLs must use HTTPS.';imageError.hidden=false;return}if(!/\.(png|jpe?g|gif|webp)$/i.test(parsed.pathname)){imageError.textContent='Unsupported image extension. Use a PNG, JPEG, GIF or WebP URL.';imageError.hidden=false;return}const publishedSrc=safeImageSrc(src);if(!publishedSrc){imageError.textContent='Enter a valid public HTTPS image URL.';imageError.hidden=false;return}const context=imageInsertionContext,group=[...state.steps,...state.appendices].find(item=>item.id===context?.groupId),at=insertionIndex(group,context),id=newId('image'),width=widthValue===''?100:Number(widthValue);if(!group||at<0){imageError.textContent='That insertion location is no longer available.';imageError.hidden=false;return}commit(()=>{group.blocks.splice(at,0,{id,type:'image',src:publishedSrc,alt,captionRuns:caption?[{text:caption}]:[],width});editorSelection.activeGroupId=group.id;editorSelection.activeGroupType=state.steps.includes(group)?'step':'appendix';editorSelection.activeStepId=state.steps.includes(group)?group.id:null;editorSelection.activeBlockId=id;editorSelection.blockType='image';editorSelection.container='image-caption';editorSelection.offsets=[0,0]});imageDialog.close();announce('Published image added')};
+const imageDialog=$('#image-dialog'),imageForm=$('#image-form'),imageError=$('#image-form-error');imageDialog.addEventListener('close',()=>imageInsertionContext=null);imageForm.onsubmit=event=>{event.preventDefault();const caption=imageForm.elements.caption.value.trim(),widthValue=imageForm.elements.width.value,result=validateImageInput({source:imageForm.elements.src.value,altText:imageForm.elements.alt.value,width:widthValue});if(!result.ok||!imageForm.checkValidity()){const messages={'missing-source':'Enter an image URL and alternative text, and use a width between 20 and 100.','missing-alt-text':'Enter an image URL and alternative text, and use a width between 20 and 100.','malformed-source':'Enter a complete, well-formed image URL.','unsupported-protocol':'Unsupported protocol. Image URLs must use HTTPS.','unsupported-extension':'Unsupported image extension. Use a PNG, JPEG, GIF or WebP URL.'};imageError.textContent=messages[result.error]||'Enter an image URL and alternative text, and use a width between 20 and 100.';imageError.hidden=false;return}const context=imageInsertionContext,id=newId('image'),{source,altText,width}=result.image,block={id,type:'image',src:source,alt:altText,captionRuns:caption?[{text:caption}]:[],width};if(!applyDocumentOperation(document=>insertBlocks(document,context,[block]),operationResult=>{selectOperationBlock(operationResult);editorSelection.container='image-caption'})){imageError.textContent='That insertion location is no longer available.';imageError.hidden=false;return}imageDialog.close();announce('Published image added')};
 $('#save-draft').onclick=()=>persistDraft({updateUrl:true});$('#save-version').onclick=()=>{if(!persistDraft())return;const label=prompt('Name this saved version:',`${state.meta.version||'Version'} — ${state.meta.status||'Draft'}`);if(label===null)return;saveVersion(state,label);announce('Named version saved')};$('#show-versions').onclick=versionsDialog;$('#share-snapshot').onclick=async()=>{flushAll(false);const url=`${location.href.split('#')[0]}#snapshot=${encodeSnapshot(state)}`;try{await navigator.clipboard.writeText(url);announce('Snapshot link copied')}catch{prompt('Copy this validated snapshot link:',url)}};$('#open-selected-link').onpointerdown=event=>event.preventDefault();$('#open-selected-link').onclick=()=>openEditorLink($('#link-context').dataset.href);$('#preview').addEventListener('click',editableLinkClick);document.addEventListener('selectionchange',updateLinkContext);
 const printButton=$('#print-document');
 const printing=new PrintLifecycle({flush:()=>flushAll(false),cancelPagination:()=>repagination.cancel(),render:()=>render({immediate:true}),prepare:()=>{const view=captureView();document.documentElement.classList.add('preparing-print');printButton.disabled=true;announce('Preparing complete document for printing');return view},clearPresentation:()=>{getSelection()?.removeAllRanges();document.activeElement?.blur?.()},print:()=>window.print(),onAfterPrint:cleanup=>{window.addEventListener('afterprint',cleanup,{once:true});return()=>window.removeEventListener('afterprint',cleanup)},restore:view=>{document.documentElement.classList.remove('preparing-print');printButton.disabled=false;restoreView(view);announce('Print preparation finished')},onError:error=>announce(`Print preparation failed: ${error.message}`)});
