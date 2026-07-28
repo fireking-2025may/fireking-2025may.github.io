@@ -12,11 +12,13 @@ Run `npm run build`, then open `dist/index.html` directly in current Chrome or E
 
 ## Local persistence and snapshots
 
-Edits autosave after a short idle period and are also saved when the page is hidden or closed. **Save now** performs the same operation immediately. The previous draft is rotated into a recovery record. Saves use a revision check: if another tab has written a newer draft, the stale tab is refused before either the draft or recovery record is changed. Reload that tab to use the newer data.
+Edits autosave after a short idle period and are also saved when the page is hidden or closed. **Save now** performs the same operation immediately and, only after a successful save, replaces the current URL fragment with a snapshot of that saved state. Autosaves do not change the URL or add browser History entries. The previous draft is rotated into a recovery record. Saves use a revision check: if another tab has written a newer draft, the stale tab is refused before either the draft, recovery record, or URL is changed. Reload that tab to use the newer data.
 
 Use **Save version** to create a named local checkpoint and **Versions** to restore or delete one; only the newest 20 are retained. A restore first saves the current draft and is cancelled if that prerequisite save fails. **Document properties** edits report metadata and sets workflow status to Draft, For review, or Final.
 
 **Copy snapshot link** creates a schema-validated, versioned document snapshot in the URL fragment. Anyone opening the link receives an independent copy; later local edits are not synchronised. Snapshot contents are readable in the URL and must not be used for confidential client data. All persistence is browser-local: clearing site data, changing browser/profile, or using a different `file:` location can make it unavailable, so named versions are not a substitute for managed backups.
+
+Linked text remains directly editable. Use Ctrl-click on Windows/Linux or Cmd-click on macOS to follow a link, or place the caret in linked text and choose **Open link**. Internal links stay in the editor, while HTTP(S) destinations open in a separate protected tab.
 
 ## Implemented scope
 

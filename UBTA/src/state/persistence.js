@@ -55,3 +55,4 @@ export function decodeSnapshot(value) {
   catch (error) { throw Error(`Invalid UBTA snapshot: ${error.message}`); }
 }
 export function snapshotFromLocation(location = globalThis.location) { const match=location.hash.match(/^#snapshot=([A-Za-z0-9_-]+)$/); return match ? decodeSnapshot(match[1]) : null; }
+export function updateSnapshotUrl(document, location = globalThis.location, browserHistory = globalThis.history) { const url=`${location.href.split('#')[0]}#snapshot=${encodeSnapshot(document)}`;browserHistory.replaceState(browserHistory.state,'',url);return url; }
