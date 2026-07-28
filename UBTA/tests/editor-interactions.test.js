@@ -1,12 +1,12 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { transformRuns, runsFromElement, insertPlainText } from '../src/editor/dom-runs.js';
-import { validatedLink, confirmStepDeletion, splitListRuns, insertTableRowBeforeTotals, insertTableRowAfter, insertTableColumnAfter, GenerationGate, restoreTextSelection, parseTableNumber, formatTableNumber, recalculateTableTotals, moveTableRow, moveTableColumn } from '../src/editor/interactions.js';
+import { containedSelectionOffsets, validatedLink, confirmStepDeletion, splitListRuns, insertTableRowBeforeTotals, insertTableRowAfter, insertTableColumnAfter, GenerationGate, restoreTextSelection, parseTableNumber, formatTableNumber, recalculateTableTotals, moveTableRow, moveTableColumn } from '../src/editor/interactions.js';
 import { routeInsertionCommand, canApplyBlockStyle, blockStyleChoices } from '../src/editor/command-routing.js';
 import { renderList } from '../src/editor/list-rendering.js';
 import { blockTypeLabel, removeBlockFromGroup } from '../src/editor/block-deletion.js';
 import { insertionIndex, insertionContextFromPoint } from '../src/editor/insertion-context.js';
-import { followEditorLink } from '../src/editor/link-actions.js';
+import { followEditorLink, handleEditableLinkClick } from '../src/editor/link-actions.js';
 const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/rich-runs.json',import.meta.url)));const runs=[fixture.runs[0],{...fixture.runs[2],text:'linked',link:{href:'#anchor-a'}},{...fixture.runs[3],text:'web'}];
 test('highlighting mixed runs preserves links',()=>{const out=transformRuns(runs,[2,12],'highlight');assert.equal(out.map(x=>x.text).join(''),'plainlinkedweb');assert.ok(out.filter(x=>x.text.includes('linked')).every(x=>x.link?.href==='#anchor-a'))});
 test('collapsed highlight applies to an entire unhighlighted container and preserves links',()=>{const input=[{text:'plain',highlight:false,link:null},{text:'linked',highlight:false,link:{href:'#anchor-a'}}];const out=transformRuns(input,[3,3],'highlight');assert.ok(out.every(run=>run.highlight));assert.equal(out.find(run=>run.text==='linked').link.href,'#anchor-a')});
@@ -50,3 +50,22 @@ test('generation gate rejects stale pagination',()=>{const gate=new GenerationGa
 test('selection restoration focuses without scrolling and publishes range',()=>{const node={length:5},calls=[];const range={setStart:(...x)=>calls.push(['start',...x]),setEnd:(...x)=>calls.push(['end',...x])};const environment={NodeFilter:{SHOW_TEXT:4},document:{createTreeWalker:()=>({nextNode:(()=>{let once=false;return()=>once?null:(once=true,node)})()}),createRange:()=>range},getSelection:()=>({removeAllRanges(){},addRange:r=>calls.push(['range',r])})};let option;assert.equal(restoreTextSelection({focus:x=>option=x},[1,4],environment),true);assert.deepEqual(option,{preventScroll:true});assert.equal(calls.at(-1)[0],'range')});
 
 test('debounced input produces one history operation',async()=>{const { History }=await import('../src/state/history.js');let text='';const history=new History({text});const scheduler=new (await import('../src/editor/repagination.js')).RepaginationScheduler(async()=>{history.commit({text});return true},{delay:5});text='a';scheduler.request();text='ab';scheduler.request();text='abc';await scheduler.request();assert.equal(history.past.length,1);assert.deepEqual(history.undo(),{text:''});assert.deepEqual(history.redo(),{text:'abc'})});
+
+test('dialog focus cannot replace a captured editor selection with unrelated offsets',()=>{
+  const editorNode={id:'editor'},dialogNode={id:'dialog'},element={contains:node=>node===editorNode};
+  let setEndCalls=0;
+  const documentObject={createRange:()=>({selectNodeContents(){},setEnd(){setEndCalls++},toString:()=> 'before'})};
+  const editorRange={startContainer:editorNode,endContainer:editorNode,startOffset:2,toString:()=> 'chosen'};
+  assert.deepEqual(containedSelectionOffsets(element,{rangeCount:1,getRangeAt:()=>editorRange},documentObject),[6,12]);
+  const dialogRange={startContainer:dialogNode,endContainer:dialogNode,startOffset:0,toString:()=> 'dialog'};
+  assert.equal(containedSelectionOffsets(element,{rangeCount:1,getRangeAt:()=>dialogRange},documentObject),null);
+  assert.equal(setEndCalls,1,'an unrelated dialog node must never be passed to Range.setEnd');
+});
+
+test('preview click delegation continues to work for links in replacement pages',()=>{
+  for(const href of ['#anchor-step','https://example.test','mailto:team@example.test']){
+    let opened,prevented=false;const link={getAttribute:()=>href};
+    const event={button:0,target:{closest:selector=>selector==='.editable-runs a'?link:null},preventDefault:()=>prevented=true};
+    assert.equal(handleEditableLinkClick(event,value=>opened=value),true);assert.equal(opened,href);assert.equal(prevented,true);
+  }
+});
