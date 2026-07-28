@@ -28,6 +28,59 @@
  * This constrained adapter implements the Previewer surface used here because the full upstream bundle was unavailable in the supplied materials. */
 window.Paged={Previewer:class{async preview(content,styles,target){target.replaceChildren();const nodes=[...content.children];for(const node of nodes){const page=document.createElement('div');page.className='pagedjs_page';page.tabIndex=-1;const box=document.createElement('div');box.className='pagedjs_pagebox';box.append(node.cloneNode(true));page.append(box);target.append(page)}return{total:target.children.length,pages:[...target.children]}}}};
 
+const FORMATS = new Set(['text', 'number', 'gbp']);
+const runsText = runs => (runs || []).map(run => run.text || '').join('');
+const plainRuns = text => text === '' ? [] : [{ text, highlight: false, link: null }];
+
+const tableColumnFormat = column => FORMATS.has(column?.format) ? column.format : column?.numeric === true ? 'number' : 'text';
+
+/** Blank and invalid values return null; arbitrary text is never coerced to zero. */
+function parseTableNumber(value) {
+  const compact = String(value ?? '').replace(/\s/g, '');
+  if (!compact) return null;
+  const match = compact.match(/^(?:£)?([+-]?)(?:£)?((?:\d{1,3}(?:,\d{3})+)|\d+)(\.\d+)?$/);
+  if (!match) return null;
+  const number = Number(`${match[1]}${match[2].replaceAll(',', '')}${match[3] || ''}`);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatTableNumber(value, format = 'number') {
+  if (!Number.isFinite(value)) return '';
+  if (format === 'gbp') return `${value < 0 ? '-' : ''}£${Math.abs(value).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (format === 'number') return value.toLocaleString('en-GB', { maximumFractionDigits: 20 });
+  return String(value);
+}
+
+function recalculateTableTotals(block) {
+  if (block?.type !== 'table') return block;
+  block.rows.forEach((row, rowIndex) => {
+    if (!row.isTotal) return;
+    block.columns.forEach((column, columnIndex) => {
+      const format = tableColumnFormat(column);
+      if (format === 'text') return;
+      const values = block.rows.slice(0, rowIndex).filter(candidate => !candidate.isTotal).map(candidate => parseTableNumber(runsText(candidate.cells?.[columnIndex]?.runs))).filter(value => value !== null);
+      const total = values.reduce((sum, value) => sum + value, 0);
+      if (row.cells?.[columnIndex]) row.cells[columnIndex].runs = plainRuns(formatTableNumber(total, format));
+    });
+  });
+  return block;
+}
+
+function moveTableRow(block, index, offset) {
+  const target = index + offset, row = block?.rows?.[index];
+  if (!row || target < 0 || target >= block.rows.length || block.rows[target].isTotal !== row.isTotal) return false;
+  [block.rows[index], block.rows[target]] = [block.rows[target], block.rows[index]];
+  return target;
+}
+
+function moveTableColumn(block, index, offset) {
+  const target = index + offset;
+  if (!block?.columns?.[index] || target < 0 || target >= block.columns.length) return false;
+  [block.columns[index], block.columns[target]] = [block.columns[target], block.columns[index]];
+  block.rows.forEach(row => { [row.cells[index], row.cells[target]] = [row.cells[target], row.cells[index]]; });
+  return target;
+}
+
 
 const SCHEMA_VERSION = 5;
 const METADATA_KEYS = ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'];
@@ -214,7 +267,6 @@ function transformRuns(runs, offsets, kind, value) {
 
 function insertPlainText(event, documentObject=document) { event.preventDefault();documentObject.execCommand('insertText',false,event.clipboardData.getData('text/plain')); }
 
-{ parseTableNumber, formatTableNumber, tableColumnFormat, recalculateTableTotals, moveTableRow, moveTableColumn } from './table-values.js';
 function validatedLink(external,internal){const candidate=String(external||'').trim();return safeHref(candidate||internal);}
 function confirmStepDeletion(steps,index,confirmAction){if(steps.length<=1||index<0||index>=steps.length)return false;return confirmAction(`Delete Step ${index+1}: ${steps[index].title}?`);}
 function splitListRuns(runs,offset){let position=0,before=[],after=[];for(const run of runs){const split=Math.max(0,Math.min(run.text.length,offset-position));if(split)before.push({...run,text:run.text.slice(0,split)});if(split<run.text.length)after.push({...run,text:run.text.slice(split)});position+=run.text.length}return [normaliseRuns(before),normaliseRuns(after)];}
