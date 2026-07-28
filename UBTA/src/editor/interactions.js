@@ -1,5 +1,4 @@
 import { normaliseRuns, safeHref } from '../state/schema.js';
-export { parseTableNumber, formatTableNumber, tableColumnFormat, recalculateTableTotals, moveTableRow, moveTableColumn } from './table-values.js';
 export function validatedLink(external,internal){const candidate=String(external||'').trim();return safeHref(candidate||internal);}
 export function containedSelectionOffsets(element,selection,documentObject=document){
   if(!element||!selection?.rangeCount)return null;

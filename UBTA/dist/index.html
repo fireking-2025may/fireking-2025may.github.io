@@ -312,6 +312,45 @@ function moveTableColumn(block, index, offset) {
   return target;
 }
 
+const SUPPORTED_IMAGE_PATH = /\.(png|jpe?g|gif|webp)$/i;
+
+function validateImageSource(value) {
+  const source = typeof value === 'string' ? value.trim() : '';
+  if (!source) return { ok: false, error: 'missing-source' };
+
+  let url;
+  try {
+    url = new URL(source);
+  } catch {
+    return { ok: false, error: 'malformed-source' };
+  }
+
+  if (url.protocol !== 'https:') return { ok: false, error: 'unsupported-protocol' };
+  if (!SUPPORTED_IMAGE_PATH.test(url.pathname)) return { ok: false, error: 'unsupported-extension' };
+  return { ok: true, url: url.href };
+}
+
+function normalizeImageWidth(value) {
+  return Math.min(100, Math.max(20, Number(value) || 100));
+}
+
+function validateImageInput(input = {}) {
+  const source = validateImageSource(input.source);
+  if (!source.ok) return source;
+
+  const altText = String(input.altText ?? '').trim();
+  if (!altText) return { ok: false, error: 'missing-alt-text' };
+
+  return {
+    ok: true,
+    image: {
+      source: source.url,
+      altText,
+      width: normalizeImageWidth(input.width),
+    },
+  };
+}
+
 
 const SCHEMA_VERSION = 5;
 const METADATA_KEYS = ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'];
@@ -325,9 +364,8 @@ const makeId = (value, prefix = 'id') => IDENTIFIER.test(value || '') ? value : 
 
 const safeHref = value => typeof value === 'string' && /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*$)/i.test(value) ? value : null;
 const safeImageSrc = value => {
-  if (typeof value !== 'string') return null;
-  try { const url = new URL(value); return url.protocol === 'https:' && /\.(png|jpe?g|gif|webp)$/i.test(url.pathname) ? url.href : null; }
-  catch { return null; }
+  const result = validateImageSource(value);
+  return result.ok ? result.url : null;
 };
 
 function normaliseRuns(runs) {
@@ -386,7 +424,7 @@ function normaliseBlock(block) {
     output.rows = (Array.isArray(block.rows) ? block.rows : []).map((row, ri) => ({ id: makeId(row?.id, 'row'), isTotal: row?.isTotal === true, cells: output.columns.map((column, ci) => normaliseCell(row?.cells?.[ci], `${output.id}-${ri}-${column.id}`)) }));
     recalculateTableTotals(output);
   } else {
-    output.src = safeImageSrc(block.src); output.alt = String(block.alt ?? ''); output.captionRuns = normaliseRuns(block.captionRuns || [{ text: block.caption ?? '' }]); output.width = Math.min(100, Math.max(20, Number(block.width) || 100));
+    output.src = safeImageSrc(block.src); output.alt = String(block.alt ?? ''); output.captionRuns = normaliseRuns(block.captionRuns || [{ text: block.caption ?? '' }]); output.width = normalizeImageWidth(block.width);
   }
   return output;
 }
@@ -410,7 +448,7 @@ function *runContainers(group) {
 }
 const hasReview = group => [...runContainers(group)].some(container => container.runs.some(run => run.highlight));
 const stableAnchor = entity => `anchor-${entity.id}`;
-function validateDocument(document) { if (![1,2,3,4,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !block.src) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source'); return result; }
+function validateDocument(document) { if (![1,2,3,4,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !validateImageInput({ source: block.src, altText: block.alt, width: block.width }).ok) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source and alternative text'); return result; }
 
 const eligibleText = step => [...runContainers(step)].filter(x => (x.kind === 'block' && x.block.type === 'paragraph') || ['listItem','tableCaption','imageCaption'].includes(x.kind)).map(x => x.runs.map(r => r.text).join('').trim()).find(Boolean) || '';
 function transactionProposals(document) { return normaliseDocument(document).steps.map((step, index) => ({ id:`proposal-${step.id}`, stepId:step.id, title:`Step ${index+1}. ${step.title}`, anchor:stableAnchor(step), summary:step.summary.trim() || eligibleText(step) })); }
@@ -785,7 +823,7 @@ bindCallouts();
 function persistDraft({quiet=false,updateUrl=false}={}){flushAll(false);clearTimeout(autosaveTimer);let result;try{result=saveDraft(state,loadedRevision)}catch(error){const indicator=$('#save-state');indicator.textContent='Save failed';indicator.className='save-state error';if(!quiet)alert(`Could not save this draft: ${error.message}`);return false}if(!result.ok){const indicator=$('#save-state');indicator.textContent='Newer draft in another tab';indicator.className='save-state error';if(!quiet)alert('This draft was changed in another tab. Reload before saving so that the newer draft and recovery copy are not overwritten.');return false}loadedRevision=result.revision;dirty=false;if(updateUrl)updateSnapshotUrl(result.record.document,window.location,window.history);const indicator=$('#save-state');indicator.textContent=`Saved locally ${new Date(result.record.savedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;indicator.className='save-state';return true}
 function versionsDialog(){const dialog=$('#versions-dialog'),list=$('#versions-list'),versions=listVersions();list.innerHTML=versions.length?versions.map(v=>`<div class="version-row"><span><b>${esc(v.label)}</b><small>${new Date(v.savedAt).toLocaleString()}</small></span><button type="button" data-restore-version="${esc(v.id)}">Restore</button><button type="button" data-delete-version="${esc(v.id)}">Delete</button></div>`).join(''):'<p>No saved versions yet.</p>';list.querySelectorAll('[data-restore-version]').forEach(button=>button.onclick=async()=>{const version=listVersions().find(v=>v.id===button.dataset.restoreVersion);if(!version)return;if(!persistDraft())return;state=normaliseDocument(version.document);history.commit(state);markDirty();dialog.close();await render({restore:false});announce('Saved version restored')});list.querySelectorAll('[data-delete-version]').forEach(button=>button.onclick=()=>{deleteVersion(button.dataset.deleteVersion);versionsDialog()});if(!dialog.open)dialog.showModal()}
 const propertiesDialog=$('#properties-dialog'),propertiesForm=$('#properties-form');$('#document-properties').onclick=()=>{for(const key of METADATA_KEYS)propertiesForm.elements[key].value=state.meta[key];propertiesDialog.showModal()};propertiesForm.onsubmit=async event=>{event.preventDefault();for(const key of METADATA_KEYS)propertiesForm.elements[key].value=propertiesForm.elements[key].value.trim();if(!propertiesForm.reportValidity())return;await commit(()=>{for(const key of METADATA_KEYS)state.meta[key]=propertiesForm.elements[key].value},{focus:false});propertiesDialog.close();announce('Document properties updated')};
-const imageDialog=$('#image-dialog'),imageForm=$('#image-form'),imageError=$('#image-form-error');imageDialog.addEventListener('close',()=>imageInsertionContext=null);imageForm.onsubmit=event=>{event.preventDefault();const src=imageForm.elements.src.value.trim(),alt=imageForm.elements.alt.value.trim(),caption=imageForm.elements.caption.value.trim(),widthValue=imageForm.elements.width.value;if(!src||!alt||!imageForm.checkValidity()){imageError.textContent='Enter an image URL and alternative text, and use a width between 20 and 100.';imageError.hidden=false;return}let parsed;try{parsed=new URL(src)}catch{imageError.textContent='Enter a complete, well-formed image URL.';imageError.hidden=false;return}if(parsed.protocol!=='https:'){imageError.textContent='Unsupported protocol. Image URLs must use HTTPS.';imageError.hidden=false;return}if(!/\.(png|jpe?g|gif|webp)$/i.test(parsed.pathname)){imageError.textContent='Unsupported image extension. Use a PNG, JPEG, GIF or WebP URL.';imageError.hidden=false;return}const publishedSrc=safeImageSrc(src);if(!publishedSrc){imageError.textContent='Enter a valid public HTTPS image URL.';imageError.hidden=false;return}const context=imageInsertionContext,group=[...state.steps,...state.appendices].find(item=>item.id===context?.groupId),at=insertionIndex(group,context),id=newId('image'),width=widthValue===''?100:Number(widthValue);if(!group||at<0){imageError.textContent='That insertion location is no longer available.';imageError.hidden=false;return}commit(()=>{group.blocks.splice(at,0,{id,type:'image',src:publishedSrc,alt,captionRuns:caption?[{text:caption}]:[],width});editorSelection.activeGroupId=group.id;editorSelection.activeGroupType=state.steps.includes(group)?'step':'appendix';editorSelection.activeStepId=state.steps.includes(group)?group.id:null;editorSelection.activeBlockId=id;editorSelection.blockType='image';editorSelection.container='image-caption';editorSelection.offsets=[0,0]});imageDialog.close();announce('Published image added')};
+const imageDialog=$('#image-dialog'),imageForm=$('#image-form'),imageError=$('#image-form-error');imageDialog.addEventListener('close',()=>imageInsertionContext=null);imageForm.onsubmit=event=>{event.preventDefault();const caption=imageForm.elements.caption.value.trim(),widthValue=imageForm.elements.width.value,result=validateImageInput({source:imageForm.elements.src.value,altText:imageForm.elements.alt.value,width:widthValue});if(!result.ok||!imageForm.checkValidity()){const messages={'missing-source':'Enter an image URL and alternative text, and use a width between 20 and 100.','missing-alt-text':'Enter an image URL and alternative text, and use a width between 20 and 100.','malformed-source':'Enter a complete, well-formed image URL.','unsupported-protocol':'Unsupported protocol. Image URLs must use HTTPS.','unsupported-extension':'Unsupported image extension. Use a PNG, JPEG, GIF or WebP URL.'};imageError.textContent=messages[result.error]||'Enter an image URL and alternative text, and use a width between 20 and 100.';imageError.hidden=false;return}const context=imageInsertionContext,group=[...state.steps,...state.appendices].find(item=>item.id===context?.groupId),at=insertionIndex(group,context),id=newId('image'),{source,altText,width}=result.image;if(!group||at<0){imageError.textContent='That insertion location is no longer available.';imageError.hidden=false;return}commit(()=>{group.blocks.splice(at,0,{id,type:'image',src:source,alt:altText,captionRuns:caption?[{text:caption}]:[],width});editorSelection.activeGroupId=group.id;editorSelection.activeGroupType=state.steps.includes(group)?'step':'appendix';editorSelection.activeStepId=state.steps.includes(group)?group.id:null;editorSelection.activeBlockId=id;editorSelection.blockType='image';editorSelection.container='image-caption';editorSelection.offsets=[0,0]});imageDialog.close();announce('Published image added')};
 $('#save-draft').onclick=()=>persistDraft({updateUrl:true});$('#save-version').onclick=()=>{if(!persistDraft())return;const label=prompt('Name this saved version:',`${state.meta.version||'Version'} — ${state.meta.status||'Draft'}`);if(label===null)return;saveVersion(state,label);announce('Named version saved')};$('#show-versions').onclick=versionsDialog;$('#share-snapshot').onclick=async()=>{flushAll(false);const url=`${location.href.split('#')[0]}#snapshot=${encodeSnapshot(state)}`;try{await navigator.clipboard.writeText(url);announce('Snapshot link copied')}catch{prompt('Copy this validated snapshot link:',url)}};$('#open-selected-link').onpointerdown=event=>event.preventDefault();$('#open-selected-link').onclick=()=>openEditorLink($('#link-context').dataset.href);$('#preview').addEventListener('click',editableLinkClick);document.addEventListener('selectionchange',updateLinkContext);
 const printButton=$('#print-document');
 const printing=new PrintLifecycle({flush:()=>flushAll(false),cancelPagination:()=>repagination.cancel(),render:()=>render({immediate:true}),prepare:()=>{const view=captureView();document.documentElement.classList.add('preparing-print');printButton.disabled=true;announce('Preparing complete document for printing');return view},clearPresentation:()=>{getSelection()?.removeAllRanges();document.activeElement?.blur?.()},print:()=>window.print(),onAfterPrint:cleanup=>{window.addEventListener('afterprint',cleanup,{once:true});return()=>window.removeEventListener('afterprint',cleanup)},restore:view=>{document.documentElement.classList.remove('preparing-print');printButton.disabled=false;restoreView(view);announce('Print preparation finished')},onError:error=>announce(`Print preparation failed: ${error.message}`)});
