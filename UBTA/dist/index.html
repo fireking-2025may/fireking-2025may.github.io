@@ -130,6 +130,124 @@ class History {
 }
 
 
+function runsFromElement(element) {
+  const output = [];
+  const walk = (node, highlighted = false, href = null) => {
+    if (node.nodeType === 3) {
+      output.push({ text: node.nodeValue || '', highlight: highlighted, link: href ? { href } : null });
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'br') {
+      output.push({ text: '\n', highlight: highlighted, link: href ? { href } : null });
+      return;
+    }
+    const nextHighlight = highlighted || tag === 'mark';
+    const nextHref = tag === 'a' ? (safeHref(node.getAttribute('href')) || href) : href;
+    [...node.childNodes].forEach(child => walk(child, nextHighlight, nextHref));
+    if (['div', 'p'].includes(tag) && node.nextSibling && output.at(-1)?.text?.at(-1) !== '\n') {
+      output.push({ text: '\n', highlight: highlighted, link: href ? { href } : null });
+    }
+  };
+  [...element.childNodes].forEach(node => walk(node));
+  return normaliseRuns(output);
+}
+
+function transformRuns(runs, [start, end], kind, value) {
+  if (!runs || start === end) return runs;
+  let position = 0;
+  const selected = runs.filter(run => {
+    const runStart = position;
+    position += run.text.length;
+    return runStart < end && position > start;
+  });
+  const addHighlight = kind === 'highlight' && !selected.every(run => run.highlight);
+  position = 0;
+  const output = [];
+  for (const run of runs) {
+    const runEnd = position + run.text.length;
+    if (runEnd <= start || position >= end) {
+      output.push({ ...run });
+      position = runEnd;
+      continue;
+    }
+    const from = Math.max(start, position);
+    const to = Math.min(end, runEnd);
+    if (position < from) output.push({ ...run, text: run.text.slice(0, from - position) });
+    if (to > from) {
+      const part = { ...run, text: run.text.slice(from - position, to - position) };
+      if (kind === 'highlight') part.highlight = addHighlight;
+      if (kind === 'link') part.link = { href: value };
+      if (kind === 'unlink') part.link = null;
+      output.push(part);
+    }
+    if (to < runEnd) output.push({ ...run, text: run.text.slice(to - position) });
+    position = runEnd;
+  }
+  return normaliseRuns(output);
+}
+
+function insertPlainText(event, documentObject = document) {
+  event.preventDefault();
+  const text = event.clipboardData.getData('text/plain');
+  documentObject.execCommand('insertText', false, text);
+  return text;
+}
+
+
+const validatedLink = (external, internal) => safeHref(external.trim() || internal);
+
+function confirmStepDeletion(steps, index, confirmAction = globalThis.confirm) {
+  if (steps.length <= 1 || !steps[index]) return false;
+  return confirmAction(`Delete Step ${index + 1}: ${steps[index].title}?`);
+}
+
+function splitListRuns(runs, offset) {
+  const before = [], after = [];
+  let position = 0;
+  for (const run of runs) {
+    const cut = Math.max(0, Math.min(run.text.length, offset - position));
+    if (cut) before.push({ ...run, text: run.text.slice(0, cut) });
+    if (cut < run.text.length) after.push({ ...run, text: run.text.slice(cut) });
+    position += run.text.length;
+  }
+  return [before, after];
+}
+
+function insertTableRowBeforeTotals(block, makeId) {
+  const ordinary = block.rows.map((row, index) => !row.isTotal ? index : -1).filter(index => index >= 0);
+  const index = (ordinary.at(-1) ?? -1) + 1;
+  block.rows.splice(index, 0, { id: makeId('row'), isTotal: false, cells: block.columns.map(() => ({ id: makeId('cell'), runs: [] })) });
+  return index;
+}
+
+class GenerationGate {
+  value = 0;
+  next() { return ++this.value; }
+  isCurrent(generation) { return generation === this.value; }
+}
+
+function restoreTextSelection(element, offsets, environment = globalThis) {
+  if (!element) return false;
+  element.focus({ preventScroll: true });
+  const [start, end] = offsets || [0, 0];
+  const walker = environment.document.createTreeWalker(element, environment.NodeFilter.SHOW_TEXT);
+  let position = 0, anchor, focus, node;
+  while ((node = walker.nextNode())) {
+    if (!anchor && start <= position + node.length) anchor = [node, start - position];
+    if (end <= position + node.length) { focus = [node, end - position]; break; }
+    position += node.length;
+  }
+  if (!anchor) return false;
+  const range = environment.document.createRange();
+  range.setStart(...anchor); range.setEnd(...(focus || anchor));
+  const selection = environment.getSelection();
+  selection.removeAllRanges(); selection.addRange(range);
+  return true;
+}
+
+
 const history = new History(seedDocument); let state = history.checkout(); let currentPage = 1; const pagination = new GenerationGate();
 const editorSelection = { activeStepId:null, activeBlockId:null, container:null, row:null, column:null, blockType:null, offsets:null, restoreFocus:false };
 const pending = new Map(); const $ = s => document.querySelector(s); const esc = x => String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
