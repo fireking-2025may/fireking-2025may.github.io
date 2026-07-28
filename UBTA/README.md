@@ -8,7 +8,7 @@ Run `python3 -m http.server 8000 -d src`, then visit `http://localhost:8000`. No
 
 ## Standalone build
 
-Run `npm run build`, then open `dist/index.html` directly in current Chrome or Edge (`file:///…/dist/index.html`). It contains all CSS and JavaScript and makes no runtime network requests. Drafts, recovery data, and up to 20 named versions are stored only in that browser's local storage.
+Run `npm run build`, then open `dist/index.html` directly in current Chrome or Edge (`file:///…/dist/index.html`). It contains all CSS and JavaScript; only published images referenced by a document are fetched at runtime. Drafts, recovery data, and up to 20 named versions are stored only in that browser's local storage.
 
 ## Local persistence and snapshots
 
@@ -20,14 +20,20 @@ Use **Save version** to create a named local checkpoint and **Versions** to rest
 
 ## Implemented scope
 
-* Versioned closed schema for rich-text, image, and table blocks, with safe URL and image validation.
+* Versioned closed schema for rich-text, image, and table blocks, with safe URL and published-image validation.
 * Browser-local autosave, recovery rotation, named versions, workflow status, and validated URL snapshots.
 * Debounced, generation-gated preview pagination that preserves the active page, scroll position, focus, and text selection while rejecting stale renders.
 * Landscape A4 page preview with repeated report header, anchor-keyed linked contents, derived transaction proposals and `Page X of Y` footers.
 * In-preview constrained editing that preserves sanitised highlights and links after every render.
 * Editable step titles plus stable-ID add, reorder and delete controls.
 * Editable accessible tables, highlighted total rows and keyboard-focusable column resizing.
-* Validated PNG, JPEG, GIF and WebP uploads with required alternative text.
+* Published PNG, JPEG, GIF and WebP images referenced by validated HTTPS URLs, with required alternative text and optional captions and widths. Images remain hosted by their publisher and are not downloaded or base64-encoded into the document.
+
+## Image compatibility
+
+Image URLs must use HTTPS and end in `.png`, `.jpg`, `.jpeg`, `.gif` or `.webp` (a query string or fragment may follow). Because external images are referenced rather than embedded, they must remain available at their published URL for the preview to display them and may require an internet connection.
+
+Schema version 4 no longer accepts `data:` URLs. Drafts, saved versions, recovery records and snapshots from earlier schema versions that contain base64-embedded images are rejected with migration guidance instead of silently losing those images. Publish each legacy image at a supported HTTPS URL and replace its `src` before importing that record. Earlier records containing only supported HTTPS image URLs continue to migrate normally.
 
 ## Deliberately deferred
 

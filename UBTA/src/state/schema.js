@@ -1,10 +1,9 @@
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const METADATA_KEYS = ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'];
 export const DOCUMENT_STATUSES = ['Draft','For review','Final'];
 export const TABLE_WIDTH_MIN = 8;
 export const TABLE_WIDTH_MAX = 92;
 const IDENTIFIER = /^[A-Za-z][\w-]*$/;
-const IMAGE_DATA = /^data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=\s]+$/i;
 
 export const newId = prefix => `${prefix}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
 const makeId = (value, prefix = 'id') => IDENTIFIER.test(value || '') ? value : newId(prefix);
@@ -12,8 +11,7 @@ const makeId = (value, prefix = 'id') => IDENTIFIER.test(value || '') ? value : 
 export const safeHref = value => typeof value === 'string' && /^(https?:\/\/|mailto:|#[A-Za-z][\w:.-]*$)/i.test(value) ? value : null;
 export const safeImageSrc = value => {
   if (typeof value !== 'string') return null;
-  if (IMAGE_DATA.test(value)) return value.replace(/\s/g, '');
-  try { const url = new URL(value); return url.protocol === 'https:' && /\.(png|jpe?g|gif|webp)(?:$|[?#])/i.test(url.pathname + url.search + url.hash) ? url.href : null; }
+  try { const url = new URL(value); return url.protocol === 'https:' && /\.(png|jpe?g|gif|webp)$/i.test(url.pathname) ? url.href : null; }
   catch { return null; }
 };
 
@@ -96,7 +94,7 @@ export function *runContainers(group) {
 }
 export const hasReview = group => [...runContainers(group)].some(container => container.runs.some(run => run.highlight));
 export const stableAnchor = entity => `anchor-${entity.id}`;
-export function validateDocument(document) { if (![1,2,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !block.src) throw Error('Images require a safe source'); return result; }
+export function validateDocument(document) { if (![1,2,3,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !block.src) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source'); return result; }
 
 const eligibleText = step => [...runContainers(step)].filter(x => (x.kind === 'block' && x.block.type === 'paragraph') || ['listItem','tableCaption','imageCaption'].includes(x.kind)).map(x => x.runs.map(r => r.text).join('').trim()).find(Boolean) || '';
 export function transactionProposals(document) { return normaliseDocument(document).steps.map((step, index) => ({ id:`proposal-${step.id}`, stepId:step.id, title:`Step ${index+1}. ${step.title}`, anchor:stableAnchor(step), summary:step.summary.trim() || eligibleText(step) })); }
