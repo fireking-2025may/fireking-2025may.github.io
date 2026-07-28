@@ -28,6 +28,7 @@ export function recalculateTableTotals(block) {
     block.columns.forEach((column, columnIndex) => {
       const format = tableColumnFormat(column);
       if (format === 'text') return;
+      if (column.totalEnabled === false) { if (row.cells?.[columnIndex]) row.cells[columnIndex].runs=[]; return; }
       const values = block.rows.slice(0, rowIndex).filter(candidate => !candidate.isTotal).map(candidate => parseTableNumber(runsText(candidate.cells?.[columnIndex]?.runs))).filter(value => value !== null);
       const total = values.reduce((sum, value) => sum + value, 0);
       if (row.cells?.[columnIndex]) row.cells[columnIndex].runs = plainRuns(formatTableNumber(total, format));

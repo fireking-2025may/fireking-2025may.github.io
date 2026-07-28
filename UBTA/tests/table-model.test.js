@@ -18,3 +18,11 @@ test('table domain operations calculate totals and preserve movement boundaries'
   assert.equal(moveTableRow(block, 1, -1), 0);
   assert.equal(moveTableColumn(block, 0, 1), false);
 });
+
+
+test('numeric totals can be disabled and re-enabled without changing format',()=>{
+ const cell=text=>({runs:text?[{text}]:[]}), block={type:'table',columns:[{format:'number',totalEnabled:true}],rows:[{cells:[cell('4')]},{isTotal:true,cells:[cell('stale')]}]};
+ recalculateTableTotals(block);assert.equal(block.rows[1].cells[0].runs[0].text,'4');
+ block.columns[0].totalEnabled=false;recalculateTableTotals(block);assert.deepEqual(block.rows[1].cells[0].runs,[]);assert.equal(block.columns[0].format,'number');
+ block.columns[0].totalEnabled=true;recalculateTableTotals(block);assert.equal(block.rows[1].cells[0].runs[0].text,'4');
+});

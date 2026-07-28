@@ -3,7 +3,7 @@ import test from 'node:test';
 import {
   addStep, moveStep, deleteStep, addAppendix, moveAppendix, deleteAppendix,
   insertBlock, moveBlock, deleteBlock, insertTableRow, moveTableRow, deleteTableRow,
-  insertTableColumn, moveTableColumn, deleteTableColumn, setTableColumnFormat, convertBlockStyle,
+  insertTableColumn, moveTableColumn, deleteTableColumn, setTableColumnFormat, setTableColumnTotal, convertBlockStyle,
 } from '../src/state/document-operations.js';
 
 const ids = prefix => `${prefix}-new`;
@@ -83,4 +83,12 @@ test('column format and block style conversion return explicit results', () => {
   assert.equal(convertBlockStyle(source, 'missing', 'body').reason, 'block-not-found');
   assert.equal(convertBlockStyle(source, 'table', 'body').reason, 'block-type-unsupported');
   assert.equal(convertBlockStyle(source, 'p1', 'quote').reason, 'block-style-unsupported');
+});
+
+
+test('column total toggles are immutable and recalculate immediately',()=>{
+ const source=fixture();assert.notEqual(source.steps[1].blocks[0].columns[1].totalEnabled,false);
+ const off=setTableColumnTotal(source,'table','c2',false);assert.equal(off.changed,true);assert.equal(off.document.steps[1].blocks[0].columns[1].totalEnabled,false);assert.deepEqual(off.document.steps[1].blocks[0].rows[2].cells[1].runs,[]);assert.equal(source.steps[1].blocks[0].columns[1].totalEnabled,undefined);
+ const on=setTableColumnTotal(off.document,'table','c2',true);assert.equal(on.document.steps[1].blocks[0].rows[2].cells[1].runs[0].text,'5');
+ assert.equal(setTableColumnTotal(source,'table','c1',true).reason,'column-total-not-numeric');
 });

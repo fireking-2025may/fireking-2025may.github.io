@@ -132,7 +132,7 @@ function insertTableColumnOperation(document, blockId, afterColumnId = null, opt
   const previous = afterColumnId == null ? found.block.columns.length - 1 : found.block.columns.findIndex(column => column.id === afterColumnId);
   if (afterColumnId != null && previous < 0) return unchanged(document, 'column-not-found');
   const next = copy(document), block = locateTable(next, blockId).block, makeId = options.idFactory || newId, index = previous + 1;
-  block.columns.splice(index, 0, { id: options.id || makeId('column'), headingRuns: [{ text: `Column ${index + 1}` }], width: 100 / (block.columns.length + 1), format: 'text' });
+  block.columns.splice(index, 0, { id: options.id || makeId('column'), headingRuns: [{ text: `Column ${index + 1}` }], width: 100 / (block.columns.length + 1), format: 'text', totalEnabled: false });
   block.rows.forEach(row => row.cells.splice(index, 0, { id: makeId('cell'), runs: [] }));
   const widths = normaliseTableWidths(block.columns.map(() => 100 / block.columns.length), block.columns.length);
   block.columns.forEach((column, columnIndex) => { column.width = widths[columnIndex]; });
@@ -176,6 +176,18 @@ function setTableColumnFormatOperation(document, blockId, columnId, format) {
   return changed(next, { selectedBlockId: blockId, columnIndex: index });
 }
 
+function setTableColumnTotalOperation(document, blockId, columnId, enabled) {
+  const found=locateTable(document,blockId);
+  if(!found)return unchanged(document,'table-not-found');
+  const index=found.block.columns.findIndex(column=>column.id===columnId);
+  if(index<0)return unchanged(document,'column-not-found');
+  if(tableColumnFormat(found.block.columns[index])==='text')return unchanged(document,'column-total-not-numeric');
+  if(found.block.columns[index].totalEnabled===(enabled===true))return unchanged(document,'column-total-unchanged');
+  const next=copy(document),block=locateTable(next,blockId).block;
+  block.columns[index].totalEnabled=enabled===true;recalculateTableTotals(block);
+  return changed(next,{selectedBlockId:blockId,columnIndex:index});
+}
+
 function convertBlockStyleOperation(document, blockId, style, options = {}) {
   const found = locateBlock(document, blockId);
   if (!found) return unchanged(document, 'block-not-found');
@@ -194,4 +206,4 @@ function convertBlockStyleOperation(document, blockId, style, options = {}) {
   return changed(next, { selectedBlockId: blockId, selectedBlockType: type });
 }
 
-export { addStepOperation as addStep, moveStepOperation as moveStep, deleteStepOperation as deleteStep, addAppendixOperation as addAppendix, moveAppendixOperation as moveAppendix, deleteAppendixOperation as deleteAppendix, insertBlockOperation as insertBlock, moveBlockOperation as moveBlock, deleteBlockOperation as deleteBlock, insertTableRowOperation as insertTableRow, moveTableRowOperation as moveTableRow, deleteTableRowOperation as deleteTableRow, insertTableColumnOperation as insertTableColumn, moveTableColumnOperation as moveTableColumn, deleteTableColumnOperation as deleteTableColumn, setTableColumnFormatOperation as setTableColumnFormat, convertBlockStyleOperation as convertBlockStyle };
+export { addStepOperation as addStep, moveStepOperation as moveStep, deleteStepOperation as deleteStep, addAppendixOperation as addAppendix, moveAppendixOperation as moveAppendix, deleteAppendixOperation as deleteAppendix, insertBlockOperation as insertBlock, moveBlockOperation as moveBlock, deleteBlockOperation as deleteBlock, insertTableRowOperation as insertTableRow, moveTableRowOperation as moveTableRow, deleteTableRowOperation as deleteTableRow, insertTableColumnOperation as insertTableColumn, moveTableColumnOperation as moveTableColumn, deleteTableColumnOperation as deleteTableColumn, setTableColumnFormatOperation as setTableColumnFormat, setTableColumnTotalOperation as setTableColumnTotal, convertBlockStyleOperation as convertBlockStyle };
