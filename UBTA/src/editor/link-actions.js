@@ -8,3 +8,9 @@ export function followEditorLink(href,{navigateInternal,openExternal,openMailto,
   if(/^mailto:/i.test(safe)){openMailto(safe);return true}
   return false;
 }
+
+export function handleEditableLinkClick(event,openLink){
+  const link=event.target?.closest?.('.editable-runs a');
+  if(!link||event.button!==0)return false;
+  event.preventDefault();openLink(link.getAttribute('href'));return true;
+}

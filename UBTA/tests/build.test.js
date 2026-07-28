@@ -40,5 +40,27 @@ test('standalone build contains the complete print feature', () => {
   assert.match(html, /@media print/);
   assert.match(html, /width:297mm!important;height:210mm!important/);
   assert.match(html, /\.pagedjs_page:last-child\{break-after:auto/);
-  assert.match(html, /\.step-title-print\{visibility:hidden/);
+  assert.match(html, /\.step-title-print\{display:none/);
+});
+
+test('heading titles use exactly one normal-flow representation in screen and print', () => {
+  const css = fs.readFileSync(path.join(root, 'src/styles/document.css'), 'utf8');
+  assert.match(css, /\.step-heading\{display:block\}/);
+  assert.match(css, /\.step-title-print\{display:none;/);
+  assert.match(css, /\.step-heading>\.step-title\{display:block;position:static\}/);
+  assert.doesNotMatch(css, /\.step-heading>\.step-title\{[^}]*position:absolute/);
+  assert.doesNotMatch(css, /\.step-heading>\.step-title\{[^}]*bottom:/);
+  assert.match(css, /@media print\{[\s\S]*\.step-title\{display:none!important\}[\s\S]*\.step-title-print\{display:block\}/);
+  assert.match(css, /white-space:normal;overflow-wrap:anywhere/);
+  assert.match(css, /\.sheet-source:is\(\.step,\.appendix\)\.is-selected \.step-heading\{border-left:0;padding-left:0\}/);
+});
+
+test('A4 print wrappers override responsive preview scaling consistently', () => {
+  const css = fs.readFileSync(path.join(root, 'src/styles/app.css'), 'utf8');
+  const print = css.slice(css.indexOf('@media print'));
+  assert.match(print, /@page\{size:A4 landscape;margin:0\}/);
+  assert.match(print, /html,body\{width:297mm!important;min-width:297mm!important[^}]*zoom:1!important;transform:none!important/);
+  assert.match(print, /#preview \.pagedjs_pagebox,#preview \.sheet-source\{width:297mm!important;height:210mm!important/);
+  assert.match(print, /\.pagedjs_pages\{display:block!important;width:297mm!important[^}]*zoom:1!important;transform:none!important/);
+  assert.match(print, /#preview \.pagedjs_page:last-child\{break-after:auto;page-break-after:auto\}/);
 });
