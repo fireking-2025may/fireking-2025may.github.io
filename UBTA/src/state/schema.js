@@ -1,7 +1,8 @@
 import { recalculateTableTotals, tableColumnFormat } from './table-model.js';
 import { normalizeImageWidth, validateImageInput, validateImageSource } from './image-model.js';
+import { normaliseExcel } from './excel-model.js';
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 export const METADATA_KEYS = ['clientName','projectTitle','documentType','date','version','subtitle','adviser','status'];
 export const DOCUMENT_STATUSES = ['Draft','For review','Final'];
 export const TABLE_WIDTH_MIN = 8;
@@ -83,7 +84,8 @@ export function normaliseDocument(document) {
   const meta = {}; for (const key of METADATA_KEYS) { const value=document?.meta?.[key];meta[key]=['string','number','boolean'].includes(typeof value)?String(value).trim():''; }
   if(meta.date&&!/^\d{4}-\d{2}-\d{2}$/.test(meta.date))meta.date='';else if(meta.date){const [year,month,day]=meta.date.split('-').map(Number),date=new Date(Date.UTC(year,month-1,day));if(date.getUTCFullYear()!==year||date.getUTCMonth()!==month-1||date.getUTCDate()!==day)meta.date=''}
   if(meta.status&&!DOCUMENT_STATUSES.includes(meta.status))meta.status='';
-  return { schemaVersion: SCHEMA_VERSION, meta, sections: (Array.isArray(document?.sections) ? document.sections : []).map(x => normaliseGroup(x, 'section')), steps: (Array.isArray(document?.steps) ? document.steps : []).map(x => normaliseGroup(x, 'step', true)), appendices: (Array.isArray(document?.appendices) ? document.appendices : []).map(x => normaliseGroup(x, 'appendix')) };
+  const steps = (Array.isArray(document?.steps) ? document.steps : []).map(x => normaliseGroup(x, 'step', true));
+  return { schemaVersion: SCHEMA_VERSION, meta, sections: (Array.isArray(document?.sections) ? document.sections : []).map(x => normaliseGroup(x, 'section')), steps, appendices: (Array.isArray(document?.appendices) ? document.appendices : []).map(x => normaliseGroup(x, 'appendix')), excel:normaliseExcel(document?.excel, steps) };
 }
 
 export function *runContainers(group) {
@@ -97,7 +99,7 @@ export function *runContainers(group) {
 }
 export const hasReview = group => [...runContainers(group)].some(container => container.runs.some(run => run.highlight));
 export const stableAnchor = entity => `anchor-${entity.id}`;
-export function validateDocument(document) { if (![1,2,3,4,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !validateImageInput({ source: block.src, altText: block.alt, width: block.width }).ok) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source and alternative text'); return result; }
+export function validateDocument(document) { if (![1,2,3,4,5,SCHEMA_VERSION].includes(document?.schemaVersion)) throw Error('Unsupported schema version'); for (const group of [...(document?.sections || []),...(document?.steps || []),...(document?.appendices || [])]) for (const block of group?.blocks || []) if (block?.type === 'image' && /^data:/i.test(block.src || '')) throw Error('Legacy embedded data-URL images are no longer supported; publish the image over HTTPS and replace its source'); const result = normaliseDocument(document); for (const group of [...result.sections,...result.steps,...result.appendices]) for (const block of group.blocks) if (block.type === 'image' && !validateImageInput({ source: block.src, altText: block.alt, width: block.width }).ok) throw Error('Images require a supported PNG, JPEG, GIF or WebP HTTPS source and alternative text'); return result; }
 
 const eligibleText = step => [...runContainers(step)].filter(x => (x.kind === 'block' && x.block.type === 'paragraph') || ['listItem','tableCaption','imageCaption'].includes(x.kind)).map(x => x.runs.map(r => r.text).join('').trim()).find(Boolean) || '';
 export function transactionProposals(document) { return normaliseDocument(document).steps.map((step, index) => ({ id:`proposal-${step.id}`, stepId:step.id, title:`Step ${index+1}. ${step.title}`, anchor:stableAnchor(step), summary:step.summary.trim() || eligibleText(step) })); }
