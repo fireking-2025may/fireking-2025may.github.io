@@ -48,6 +48,16 @@ test('production bundle defines Excel normalisation before document initialisati
   assert.ok(documentNormalisation > definition, 'normaliseExcel must be defined before normaliseDocument uses it');
 });
 
+test('production bundle defines ExcelEditor before creating it', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  const definition = html.indexOf('class ExcelEditor');
+  const construction = html.indexOf('new ExcelEditor(');
+
+  assert.notEqual(definition, -1, 'ExcelEditor must be bundled');
+  assert.ok(construction > definition, 'ExcelEditor must be defined before it is constructed');
+});
+
 test('production bundle contains valid JavaScript and resolves table re-exports', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
