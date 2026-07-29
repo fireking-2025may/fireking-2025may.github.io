@@ -137,15 +137,35 @@ test('standalone template unlock has embedded ciphertext and performs no runtime
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
   assert.match(html, /const defaultTemplateEnvelope\s*=/);
+  const manifest = JSON.parse(
+    fs.readFileSync(path.resolve(root, '../encrypted-files/manifest.json'), 'utf8'),
+  );
   const canonical = JSON.parse(
     fs.readFileSync(
-      path.resolve(root, '../encrypted-files/vault/8f3c1a7e4d92b605.json'),
+      path.resolve(root, '../encrypted-files', manifest.editorDefaults),
       'utf8',
     ),
   );
   assert.ok(html.includes(canonical.ciphertext));
   assert.ok(html.includes(canonical.salt));
   assert.ok(html.includes(canonical.iv));
+  for (const implementation of [
+    'function decodeBase64(',
+    'function validateEnvelope(',
+    'async function decryptEnvelope(',
+    'async function loadDefaultTemplates(',
+  ])
+    assert.notEqual(html.indexOf(implementation), -1, `${implementation} must be bundled`);
+  assert.ok(
+    html.indexOf('async function decryptEnvelope(') <
+      html.indexOf('new EncryptedTemplateLoader()'),
+    'offline crypto must be defined before the template loader is initialized',
+  );
+  assert.ok(
+    html.indexOf('const defaultTemplateEnvelope =') <
+      html.indexOf('loadDefaultTemplates({'),
+    'the offline envelope must be embedded before the unlock handler uses it',
+  );
   assert.doesNotMatch(html, /fetch\(['"]\.\.\/\.\.\/encrypted-files/);
   assert.doesNotMatch(html, /Stamp duty|Reusable paragraph content/);
 });

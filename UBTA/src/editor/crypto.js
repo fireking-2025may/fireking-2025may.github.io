@@ -23,8 +23,7 @@ export function validateEnvelope(e) {
     e.version !== 1 ||
     e.algorithm !== 'AES-GCM' ||
     e.kdf !== 'PBKDF2-SHA-256' ||
-    !Number.isInteger(e.iterations) ||
-    e.iterations < 100000 ||
+    e.iterations !== 310000 ||
     decodeBase64(e.salt).length !== 16 ||
     decodeBase64(e.iv).length !== 12 ||
     decodeBase64(e.ciphertext).length < 17

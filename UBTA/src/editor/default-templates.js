@@ -247,6 +247,11 @@ export class EncryptedTemplateLoader {
   }
 }
 
+export async function loadDefaultTemplates({ loader, envelope, password }) {
+  if (!envelope) throw Error('Default templates are unavailable offline.');
+  return loader.unlock(envelope, password);
+}
+
 const freshenBlockIds = (block, newId) => {
   const copy = structuredClone(block);
   copy.id = newId('block');

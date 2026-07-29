@@ -78,6 +78,7 @@ import {
 } from './editor/insertion-context.js';
 import {
   EncryptedTemplateLoader,
+  loadDefaultTemplates,
   templateBlocks,
 } from './editor/default-templates.js';
 import { defaultTemplateEnvelope } from './editor/default-template-data.js';
@@ -1624,7 +1625,11 @@ $('#unlock-defaults').onclick = async () => {
   error.hidden = true;
   try {
     renderTemplates(
-      await templateLoader.unlock(defaultTemplateEnvelope, password),
+      await loadDefaultTemplates({
+        loader: templateLoader,
+        envelope: defaultTemplateEnvelope,
+        password,
+      }),
     );
   } catch (failure) {
     error.textContent = failure.message;
