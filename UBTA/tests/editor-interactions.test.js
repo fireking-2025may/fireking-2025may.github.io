@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { transformRuns, runsFromElement, insertPlainText } from '../src/editor/dom-runs.js';
-import { containedSelectionOffsets, validatedLink, confirmStepDeletion, splitListRuns, removeEmptyListItem, insertTableRowBeforeTotals, insertTableRowAfter, insertTableColumnAfter, GenerationGate, restoreTextSelection } from '../src/editor/interactions.js';
+import { captureSelectionBeforeCommand, containedSelectionOffsets, validatedLink, confirmStepDeletion, splitListRuns, removeEmptyListItem, insertTableRowBeforeTotals, insertTableRowAfter, insertTableColumnAfter, GenerationGate, restoreTextSelection } from '../src/editor/interactions.js';
 import { parseTableNumber, formatTableNumber, recalculateTableTotals, moveTableRow, moveTableColumn } from '../src/state/table-model.js';
 import { routeInsertionCommand, canApplyBlockStyle, blockStyleChoices } from '../src/editor/command-routing.js';
 import { renderList } from '../src/editor/list-rendering.js';
@@ -9,6 +9,7 @@ import { blockTypeLabel, removeBlockFromGroup } from '../src/editor/block-deleti
 import { insertionIndex, insertionContextFromPoint, canOpenBlankSpaceInsertion } from '../src/editor/insertion-context.js';
 import { createEditableLinkClickHandler, followEditorLink, handleEditableLinkClick } from '../src/editor/link-actions.js';
 import { NavigationHistory } from '../src/editor/navigation-history.js';
+import { convertBlockStyle } from '../src/state/document-operations.js';
 const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/rich-runs.json',import.meta.url)));const runs=[fixture.runs[0],{...fixture.runs[2],text:'linked',link:{href:'#anchor-a'}},{...fixture.runs[3],text:'web'}];
 test('highlighting mixed runs preserves links',()=>{const out=transformRuns(runs,[2,12],'highlight');assert.equal(out.map(x=>x.text).join(''),'plainlinkedweb');assert.ok(out.filter(x=>x.text.includes('linked')).every(x=>x.link?.href==='#anchor-a'))});
 test('collapsed highlight applies to an entire unhighlighted container and preserves links',()=>{const input=[{text:'plain',highlight:false,link:null},{text:'linked',highlight:false,link:{href:'#anchor-a'}}];const out=transformRuns(input,[3,3],'highlight');assert.ok(out.every(run=>run.highlight));assert.equal(out.find(run=>run.text==='linked').link.href,'#anchor-a')});
@@ -31,6 +32,8 @@ test('table insertion precedes totals',()=>{let id=0;const block={columns:[{},{}
 test('table rows are inserted immediately after the focused row',()=>{let id=0;const block={columns:[{},{}],rows:[{id:'first',cells:[{},{}]},{id:'focused',cells:[{},{}]},{id:'last',cells:[{},{}]}]};assert.equal(insertTableRowAfter(block,1,p=>`${p}-${++id}`),2);assert.deepEqual(block.rows.map(row=>row.id),['first','focused','row-1','last']);assert.equal(block.rows[2].cells.length,2)});
 test('table columns and their cells are inserted immediately after the focused column',()=>{let id=0;const block={columns:[{id:'first'},{id:'focused'},{id:'last'}],rows:[{cells:[{id:'a'},{id:'b'},{id:'c'}]}]};assert.equal(insertTableColumnAfter(block,1,p=>`${p}-${++id}`),2);assert.deepEqual(block.columns.map(column=>column.id),['first','focused','column-1','last']);assert.deepEqual(block.rows[0].cells.map(cell=>cell.id),['a','b','cell-2','c'])});
 test('heading conversion is limited to paragraphs and headings',()=>{for(const type of ['paragraph','heading'])assert.equal(canApplyBlockStyle(type,'heading3'),true);for(const type of ['bulletList','numberList'])assert.equal(canApplyBlockStyle(type,'heading3'),false);assert.equal(canApplyBlockStyle('paragraph','bulletList'),true);assert.equal(canApplyBlockStyle('heading','numberList'),true)});
+test('heading updates target the selected block and retain its selection offsets',()=>{const document={sections:[],steps:[{id:'step',blocks:[{id:'first',type:'paragraph',runs:[{text:'First'}]},{id:'selected',type:'paragraph',runs:[{text:'Selected heading'}]}]}],appendices:[]},selection={activeBlockId:'selected',offsets:[3,11]};const result=convertBlockStyle(document,selection.activeBlockId,'heading3');assert.equal(result.document.steps[0].blocks[0].type,'paragraph');assert.equal(result.document.steps[0].blocks[1].type,'heading');assert.equal(result.document.steps[0].blocks[1].level,3);assert.deepEqual(selection.offsets,[3,11])});
+test('text commands capture the editor selection while only buttons retain editor focus',()=>{let captured=0,prevented=0;captureSelectionBeforeCommand({preventDefault:()=>prevented++},()=>captured++);captureSelectionBeforeCommand({preventDefault:()=>prevented++},()=>captured++,{keepEditorFocus:true});assert.equal(captured,2);assert.equal(prevented,1)});
 test('lists can be converted between bullets and numbering',()=>{assert.equal(canApplyBlockStyle('bulletList','numberList'),true);assert.equal(canApplyBlockStyle('numberList','bulletList'),true)});
 test('list style choices completely omit body and heading options',()=>{for(const type of ['bulletList','numberList'])assert.deepEqual(blockStyleChoices(type).map(([value])=>value),['bulletList','numberList']);assert.ok(blockStyleChoices('paragraph').some(([value])=>value==='heading1'))});
 test('table numbers parse supported input and explicitly reject blanks and text',()=>{assert.equal(parseTableNumber(' 1,234 '),1234);assert.equal(parseTableNumber('£ 1,234.50'),1234.5);assert.equal(parseTableNumber('-£2.25'),-2.25);assert.equal(parseTableNumber('£-2.25'),-2.25);assert.equal(parseTableNumber(''),null);assert.equal(parseTableNumber('not a number'),null);assert.equal(parseTableNumber('12,34'),null)});
@@ -72,9 +75,9 @@ test('preview click delegation continues to work for links in replacement pages'
   const openedLinks=[];
   const editableLinkClick=createEditableLinkClickHandler({handleClick:handleEditableLinkClick,openLink:href=>openedLinks.push(href)});
   for(const href of ['#anchor-step','https://example.test','mailto:team@example.test']){
-    let prevented=false;const link={getAttribute:()=>href};
-    const event={button:0,target:{closest:selector=>selector==='.editable-runs a'?link:null},preventDefault:()=>prevented=true};
-    assert.equal(editableLinkClick(event),true);assert.equal(openedLinks.at(-1),href);assert.equal(prevented,true);
+    let prevented=false,stopped=false;const link={getAttribute:()=>href};
+    const event={button:0,ctrlKey:true,target:{closest:selector=>selector==='.editable-runs a'?link:null},preventDefault:()=>prevented=true,stopPropagation:()=>stopped=true};
+    assert.equal(editableLinkClick(event),true);assert.equal(openedLinks.at(-1),href);assert.equal(prevented,true);assert.equal(stopped,true);
   }
 });
 
@@ -82,7 +85,9 @@ test('editable-link click delegation ignores non-links and non-primary clicks',(
   const openedLinks=[];
   const editableLinkClick=createEditableLinkClickHandler({handleClick:handleEditableLinkClick,openLink:href=>openedLinks.push(href)});
   const link={getAttribute:()=> 'https://example.test'};
-  assert.equal(editableLinkClick({button:1,target:{closest:()=>link},preventDefault:()=>assert.fail()}),false);
-  assert.equal(editableLinkClick({button:0,target:{closest:()=>null},preventDefault:()=>assert.fail()}),false);
+  assert.equal(editableLinkClick({button:1,ctrlKey:true,target:{closest:()=>link},preventDefault:()=>assert.fail()}),false);
+  assert.equal(editableLinkClick({button:0,ctrlKey:true,target:{closest:()=>null},preventDefault:()=>assert.fail()}),false);
+  assert.equal(editableLinkClick({button:0,target:{closest:()=>link},preventDefault:()=>assert.fail()}),false);
   assert.deepEqual(openedLinks,[]);
 });
+test('editable links navigate with either platform modifier',()=>{for(const modifier of ['ctrlKey','metaKey']){let opened=false;const event={button:0,[modifier]:true,target:{closest:()=>({getAttribute:()=> '#target'})},preventDefault(){},stopPropagation(){}};assert.equal(handleEditableLinkClick(event,()=>opened=true),true);assert.equal(opened,true)}});

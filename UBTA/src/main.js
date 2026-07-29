@@ -57,6 +57,7 @@ import {
 import {
   validatedLink,
   containedSelectionOffsets,
+  captureSelectionBeforeCommand,
   confirmStepDeletion,
   splitListRuns,
   removeEmptyListItem,
@@ -1484,12 +1485,16 @@ function updateControls() {
 document.querySelectorAll('[data-command]').forEach((b) => {
   b.addEventListener('pointerdown', (e) => {
     if (b.dataset.textCommand !== undefined) {
-      e.preventDefault();
-      captureSelection();
+      captureSelectionBeforeCommand(e, captureSelection, {
+        keepEditorFocus: true,
+      });
     }
   });
   b.addEventListener('click', () => command(b.dataset.command));
 });
+$('#style').addEventListener('pointerdown', (event) =>
+  captureSelectionBeforeCommand(event, captureSelection),
+);
 $('#style').onchange = (e) => command(e.target.value);
 $('#column-format').onchange = (e) => {
   const { block } = findBlock(editorSelection.activeBlockId),
@@ -1887,6 +1892,12 @@ const printing = new PrintLifecycle({
     getSelection()?.removeAllRanges();
     document.activeElement?.blur?.();
   },
+  stabilize: async () => {
+    await document.fonts?.ready;
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    return $('#preview').querySelectorAll('.pagedjs_page').length > 0;
+  },
   print: () => window.print(),
   onAfterPrint: (cleanup) => {
     window.addEventListener('afterprint', cleanup, { once: true });
@@ -2045,7 +2056,7 @@ const editorInitializationDependencies = {
 const editableLinkClick = createEditableLinkClickHandler(
   editorInitializationDependencies,
 );
-$('#preview').addEventListener('click', editableLinkClick);
+$('#preview').addEventListener('click', editableLinkClick, true);
 function selectedEditableLink() {
   const selection = getSelection(),
     node = selection?.anchorNode;

@@ -45,7 +45,7 @@ test('production bundle includes the editable-link click helper before its calle
   const factoryCall = html.indexOf(
     'const editableLinkClick = createEditableLinkClickHandler(',
   );
-  const binding = html.indexOf("addEventListener('click', editableLinkClick)");
+  const binding = html.indexOf("addEventListener('click', editableLinkClick, true)");
 
   assert.notEqual(definition, -1, 'handleEditableLinkClick must be bundled');
   assert.ok(
@@ -183,7 +183,13 @@ test('standalone build contains the complete print feature', () => {
   assert.match(html, /id="print-document"/);
   assert.match(html, /new PrintLifecycle\(/);
   assert.match(html, /window\.print\(\)/);
+  assert.match(html, /await this\.stabilize\(\)/);
+  assert.match(html, /document\.fonts\?\.ready/);
   assert.match(html, /Print preparation failed:/);
+  assert.ok(
+    html.indexOf('class PrintLifecycle') < html.indexOf('new PrintLifecycle('),
+    'the standalone lifecycle must be defined before print wiring',
+  );
   assert.match(html, /@media print/);
   assert.match(
     compactCss(html),
@@ -191,6 +197,29 @@ test('standalone build contains the complete print feature', () => {
   );
   assert.match(compactCss(html), /\.pagedjs_page:last-child\{break-after:auto/);
   assert.match(compactCss(html), /\.step-title-print\{display:none/);
+});
+
+test('standalone print and heading layout retains editing and A4 safeguards', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  const css = compactCss(html);
+  assert.match(css, /@page\{size:A4 landscape;margin:0}/);
+  assert.match(
+    css,
+    /#preview \.pagedjs_page\{[^}]*width:297mm!important;[^}]*height:210mm!important/,
+  );
+  assert.match(
+    css,
+    /#preview \.pagedjs_page\{[^}]*overflow:hidden!important;[^}]*break-after:page/,
+  );
+  assert.match(css, /\.block-controls,\.column-resizer\{display:none!important}/);
+  assert.match(
+    css,
+    /\.editable-block\[data-type="heading"\]\{break-after:avoid;break-after:avoid-page}/,
+  );
+  assert.match(html, /captureSelectionBeforeCommand\(event, captureSelection\)/);
+  assert.match(html, /\(!event\.ctrlKey && !event\.metaKey\)/);
+  assert.match(html, /Use Ctrl\/⌘\+click to open a link while editing/);
 });
 
 test('heading titles use exactly one normal-flow representation in screen and print', () => {

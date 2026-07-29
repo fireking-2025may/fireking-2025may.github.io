@@ -23,6 +23,14 @@ export function containedSelectionOffsets(
     before.toString().length + range.toString().length,
   ];
 }
+export function captureSelectionBeforeCommand(
+  event,
+  capture,
+  { keepEditorFocus = false } = {},
+) {
+  capture();
+  if (keepEditorFocus) event.preventDefault();
+}
 export function confirmStepDeletion(steps, index, confirmAction) {
   if (steps.length <= 1 || index < 0 || index >= steps.length) return false;
   return confirmAction(`Delete Step ${index + 1}: ${steps[index].title}?`);

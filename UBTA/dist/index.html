@@ -1349,7 +1349,7 @@ h4,
       >
         <span>Linked text</span>
         <button id="open-selected-link" type="button">Open link</button>
-        <span>Links open with one click</span>
+        <span>Use Ctrl/⌘+click to open a link while editing</span>
       </div>
     </div>
     <dialog id="properties-dialog">
@@ -3725,6 +3725,14 @@ function containedSelectionOffsets(
     before.toString().length + range.toString().length,
   ];
 }
+function captureSelectionBeforeCommand(
+  event,
+  capture,
+  { keepEditorFocus = false } = {},
+) {
+  capture();
+  if (keepEditorFocus) event.preventDefault();
+}
 function confirmStepDeletion(steps, index, confirmAction) {
   if (steps.length <= 1 || index < 0 || index >= steps.length) return false;
   return confirmAction(`Delete Step ${index + 1}: ${steps[index].title}?`);
@@ -3897,6 +3905,7 @@ class PrintLifecycle {
     restore,
     onAfterPrint,
     onError = () => {},
+    stabilize = () => true,
     setFallback = (callback) => setTimeout(callback, 1000),
     clearFallback = clearTimeout,
   }) {
@@ -3910,6 +3919,7 @@ class PrintLifecycle {
       restore,
       onAfterPrint,
       onError,
+      stabilize,
       setFallback,
       clearFallback,
     });
@@ -3919,7 +3929,8 @@ class PrintLifecycle {
   async run() {
     if (this.busy) return false;
     this.busy = true;
-    const context = this.prepare();
+    let context;
+    let prepared = false;
     let fallback;
     let removeAfterPrint = () => {};
     const cleanup = () => {
@@ -3927,9 +3938,11 @@ class PrintLifecycle {
       this.busy = false;
       if (fallback !== undefined) this.clearFallback(fallback);
       removeAfterPrint();
-      this.restore(context);
+      if (prepared) this.restore(context);
     };
     try {
+      context = this.prepare();
+      prepared = true;
       this.flush();
       this.cancelPagination();
       if (!(await this.render()))
@@ -3940,6 +3953,8 @@ class PrintLifecycle {
         throw new Error(
           'The document contents could not be reconciled for printing.',
         );
+      if (!(await this.stabilize()))
+        throw new Error('The paginated print layout did not become stable.');
       this.clearPresentation();
       removeAfterPrint = this.onAfterPrint(cleanup);
       this.print();
@@ -4620,8 +4635,10 @@ function followEditorLink(
 
 function handleEditableLinkClick(event, openLink) {
   const link = event.target?.closest?.('.editable-runs a');
-  if (!link || event.button !== 0) return false;
+  if (!link || event.button !== 0 || (!event.ctrlKey && !event.metaKey))
+    return false;
   event.preventDefault();
+  event.stopPropagation();
   openLink(link.getAttribute('href'));
   return true;
 }
@@ -6025,12 +6042,16 @@ function updateControls() {
 document.querySelectorAll('[data-command]').forEach((b) => {
   b.addEventListener('pointerdown', (e) => {
     if (b.dataset.textCommand !== undefined) {
-      e.preventDefault();
-      captureSelection();
+      captureSelectionBeforeCommand(e, captureSelection, {
+        keepEditorFocus: true,
+      });
     }
   });
   b.addEventListener('click', () => command(b.dataset.command));
 });
+$('#style').addEventListener('pointerdown', (event) =>
+  captureSelectionBeforeCommand(event, captureSelection),
+);
 $('#style').onchange = (e) => command(e.target.value);
 $('#column-format').onchange = (e) => {
   const { block } = findBlock(editorSelection.activeBlockId),
@@ -6428,6 +6449,12 @@ const printing = new PrintLifecycle({
     getSelection()?.removeAllRanges();
     document.activeElement?.blur?.();
   },
+  stabilize: async () => {
+    await document.fonts?.ready;
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    return $('#preview').querySelectorAll('.pagedjs_page').length > 0;
+  },
   print: () => window.print(),
   onAfterPrint: (cleanup) => {
     window.addEventListener('afterprint', cleanup, { once: true });
@@ -6586,7 +6613,7 @@ const editorInitializationDependencies = {
 const editableLinkClick = createEditableLinkClickHandler(
   editorInitializationDependencies,
 );
-$('#preview').addEventListener('click', editableLinkClick);
+$('#preview').addEventListener('click', editableLinkClick, true);
 function selectedEditableLink() {
   const selection = getSelection(),
     node = selection?.anchorNode;
