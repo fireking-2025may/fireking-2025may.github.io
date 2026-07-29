@@ -41,14 +41,24 @@ test('production bundle includes the editable-link click helper before its calle
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
   const definition = html.indexOf('function handleEditableLinkClick(');
-  const caller = html.search(
-    /handleEditableLinkClick\(event,\s*openEditorLink\)/,
+  const dependency = html.indexOf('handleClick: handleEditableLinkClick');
+  const factoryCall = html.indexOf(
+    'const editableLinkClick = createEditableLinkClickHandler(',
   );
+  const binding = html.indexOf("addEventListener('click', editableLinkClick)");
 
   assert.notEqual(definition, -1, 'handleEditableLinkClick must be bundled');
   assert.ok(
-    caller > definition,
-    'the helper must be defined before editableLinkClick uses it',
+    dependency > definition,
+    'the helper must be defined before editor initialization references it',
+  );
+  assert.ok(
+    factoryCall > definition,
+    'the helper must be defined before the click handler is created',
+  );
+  assert.ok(
+    binding > dependency && binding > factoryCall,
+    'the standalone page must initialize the handler before binding it',
   );
 });
 

@@ -32,3 +32,9 @@ export function handleEditableLinkClick(event, openLink) {
   openLink(link.getAttribute('href'));
   return true;
 }
+
+export function createEditableLinkClickHandler({ handleClick, openLink }) {
+  return function editableLinkClick(event) {
+    return handleClick(event, openLink);
+  };
+}

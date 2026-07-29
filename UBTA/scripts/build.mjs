@@ -37,6 +37,7 @@ const bundle = (file) =>
     .replace(/^import\s+[\s\S]*?\s+from\s+['"][^'"]+['"];?\n/gm, '')
     .replace(/^export\s+\{[\s\S]*?\}(?:\s+from\s+['"][^'"]+['"])?;?\n?/gm, '')
     .replace(/\bexport\s+/g, '');
+const editorInitializationModules = ['src/editor/link-actions.js'];
 const modules = [
   'src/editor/crypto.js',
   'src/editor/default-template-data.js',
@@ -57,9 +58,9 @@ const modules = [
   'src/editor/block-deletion.js',
   'src/editor/insertion-context.js',
   'src/editor/callouts.js',
-  'src/editor/link-actions.js',
   'src/editor/navigation-history.js',
   'src/editor/excel-editor.js',
+  ...editorInitializationModules,
   'src/main.js',
 ];
 const css = ['src/styles/app.css', 'src/styles/document.css']

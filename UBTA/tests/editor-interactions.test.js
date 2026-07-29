@@ -7,7 +7,7 @@ import { routeInsertionCommand, canApplyBlockStyle, blockStyleChoices } from '..
 import { renderList } from '../src/editor/list-rendering.js';
 import { blockTypeLabel, removeBlockFromGroup } from '../src/editor/block-deletion.js';
 import { insertionIndex, insertionContextFromPoint, canOpenBlankSpaceInsertion } from '../src/editor/insertion-context.js';
-import { followEditorLink, handleEditableLinkClick } from '../src/editor/link-actions.js';
+import { createEditableLinkClickHandler, followEditorLink, handleEditableLinkClick } from '../src/editor/link-actions.js';
 import { NavigationHistory } from '../src/editor/navigation-history.js';
 const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/rich-runs.json',import.meta.url)));const runs=[fixture.runs[0],{...fixture.runs[2],text:'linked',link:{href:'#anchor-a'}},{...fixture.runs[3],text:'web'}];
 test('highlighting mixed runs preserves links',()=>{const out=transformRuns(runs,[2,12],'highlight');assert.equal(out.map(x=>x.text).join(''),'plainlinkedweb');assert.ok(out.filter(x=>x.text.includes('linked')).every(x=>x.link?.href==='#anchor-a'))});
@@ -69,9 +69,20 @@ test('dialog focus cannot replace a captured editor selection with unrelated off
 });
 
 test('preview click delegation continues to work for links in replacement pages',()=>{
+  const openedLinks=[];
+  const editableLinkClick=createEditableLinkClickHandler({handleClick:handleEditableLinkClick,openLink:href=>openedLinks.push(href)});
   for(const href of ['#anchor-step','https://example.test','mailto:team@example.test']){
-    let opened,prevented=false;const link={getAttribute:()=>href};
+    let prevented=false;const link={getAttribute:()=>href};
     const event={button:0,target:{closest:selector=>selector==='.editable-runs a'?link:null},preventDefault:()=>prevented=true};
-    assert.equal(handleEditableLinkClick(event,value=>opened=value),true);assert.equal(opened,href);assert.equal(prevented,true);
+    assert.equal(editableLinkClick(event),true);assert.equal(openedLinks.at(-1),href);assert.equal(prevented,true);
   }
+});
+
+test('editable-link click delegation ignores non-links and non-primary clicks',()=>{
+  const openedLinks=[];
+  const editableLinkClick=createEditableLinkClickHandler({handleClick:handleEditableLinkClick,openLink:href=>openedLinks.push(href)});
+  const link={getAttribute:()=> 'https://example.test'};
+  assert.equal(editableLinkClick({button:1,target:{closest:()=>link},preventDefault:()=>assert.fail()}),false);
+  assert.equal(editableLinkClick({button:0,target:{closest:()=>null},preventDefault:()=>assert.fail()}),false);
+  assert.deepEqual(openedLinks,[]);
 });

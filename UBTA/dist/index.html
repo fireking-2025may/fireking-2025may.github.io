@@ -4105,40 +4105,6 @@ function bindCallouts(root = document) {
   });
 }
 
-
-function followEditorLink(
-  href,
-  { navigateInternal, openExternal, openMailto, report = () => {} },
-) {
-  const safe = safeHref(href);
-  if (!safe) {
-    report('This link is not safe to open');
-    return false;
-  }
-  if (safe.startsWith('#')) {
-    const opened = navigateInternal(safe.slice(1));
-    if (!opened) report('The linked document destination no longer exists');
-    return opened;
-  }
-  if (/^https?:/i.test(safe)) {
-    openExternal(safe);
-    return true;
-  }
-  if (/^mailto:/i.test(safe)) {
-    openMailto(safe);
-    return true;
-  }
-  return false;
-}
-
-function handleEditableLinkClick(event, openLink) {
-  const link = event.target?.closest?.('.editable-runs a');
-  if (!link || event.button !== 0) return false;
-  event.preventDefault();
-  openLink(link.getAttribute('href'));
-  return true;
-}
-
 class NavigationHistory {
   constructor() {
     this.entries = [];
@@ -4620,6 +4586,46 @@ class ExcelEditor {
       )
       ?.focus();
   }
+}
+
+
+function followEditorLink(
+  href,
+  { navigateInternal, openExternal, openMailto, report = () => {} },
+) {
+  const safe = safeHref(href);
+  if (!safe) {
+    report('This link is not safe to open');
+    return false;
+  }
+  if (safe.startsWith('#')) {
+    const opened = navigateInternal(safe.slice(1));
+    if (!opened) report('The linked document destination no longer exists');
+    return opened;
+  }
+  if (/^https?:/i.test(safe)) {
+    openExternal(safe);
+    return true;
+  }
+  if (/^mailto:/i.test(safe)) {
+    openMailto(safe);
+    return true;
+  }
+  return false;
+}
+
+function handleEditableLinkClick(event, openLink) {
+  const link = event.target?.closest?.('.editable-runs a');
+  if (!link || event.button !== 0) return false;
+  event.preventDefault();
+  openLink(link.getAttribute('href'));
+  return true;
+}
+
+function createEditableLinkClickHandler({ handleClick, openLink }) {
+  return function editableLinkClick(event) {
+    return handleClick(event, openLink);
+  };
 }
 
 
@@ -6397,7 +6403,6 @@ $('#share-snapshot').onclick = async () => {
 $('#open-selected-link').onpointerdown = (event) => event.preventDefault();
 $('#open-selected-link').onclick = () =>
   openEditorLink($('#link-context').dataset.href);
-$('#preview').addEventListener('click', editableLinkClick);
 document.addEventListener('selectionchange', updateLinkContext);
 const printButton = $('#print-document');
 const printing = new PrintLifecycle({
@@ -6566,9 +6571,14 @@ const openEditorLink = (href) =>
     },
     report: announce,
   });
-function editableLinkClick(event) {
-  handleEditableLinkClick(event, openEditorLink);
-}
+const editorInitializationDependencies = {
+  handleClick: handleEditableLinkClick,
+  openLink: openEditorLink,
+};
+const editableLinkClick = createEditableLinkClickHandler(
+  editorInitializationDependencies,
+);
+$('#preview').addEventListener('click', editableLinkClick);
 function selectedEditableLink() {
   const selection = getSelection(),
     node = selection?.anchorNode;

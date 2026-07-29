@@ -84,6 +84,7 @@ import { defaultTemplateEnvelope } from './editor/default-template-data.js';
 import {
   followEditorLink,
   handleEditableLinkClick,
+  createEditableLinkClickHandler,
 } from './editor/link-actions.js';
 import { bindCallouts } from './editor/callouts.js';
 import { NavigationHistory } from './editor/navigation-history.js';
@@ -1864,7 +1865,6 @@ $('#share-snapshot').onclick = async () => {
 $('#open-selected-link').onpointerdown = (event) => event.preventDefault();
 $('#open-selected-link').onclick = () =>
   openEditorLink($('#link-context').dataset.href);
-$('#preview').addEventListener('click', editableLinkClick);
 document.addEventListener('selectionchange', updateLinkContext);
 const printButton = $('#print-document');
 const printing = new PrintLifecycle({
@@ -2033,9 +2033,14 @@ const openEditorLink = (href) =>
     },
     report: announce,
   });
-function editableLinkClick(event) {
-  handleEditableLinkClick(event, openEditorLink);
-}
+const editorInitializationDependencies = {
+  handleClick: handleEditableLinkClick,
+  openLink: openEditorLink,
+};
+const editableLinkClick = createEditableLinkClickHandler(
+  editorInitializationDependencies,
+);
+$('#preview').addEventListener('click', editableLinkClick);
 function selectedEditableLink() {
   const selection = getSelection(),
     node = selection?.anchorNode;
