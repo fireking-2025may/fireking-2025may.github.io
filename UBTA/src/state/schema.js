@@ -148,6 +148,9 @@ export function normaliseBlock(block) {
     output.captionRuns = normaliseRuns(
       block.captionRuns || [{ text: block.caption ?? '' }],
     );
+    output.totalsEnabled =
+      block.totalsEnabled !== false &&
+      (block.totalsEnabled === true || block.rows?.some((row) => row?.isTotal));
     output.columns = Array.from({ length: count }, (_, i) => {
       const format = tableColumnFormat(source[i]);
       return {
@@ -171,6 +174,15 @@ export function normaliseBlock(block) {
         ),
       }),
     );
+    if (output.totalsEnabled && !output.rows.some((row) => row.isTotal))
+      output.rows.push({
+        id: newId('total'),
+        isTotal: true,
+        cells: output.columns.map((column) => ({
+          id: newId(`total-${column.id}`),
+          runs: [],
+        })),
+      });
     recalculateTableTotals(output);
   } else {
     output.src = safeImageSrc(block.src);
@@ -256,7 +268,7 @@ export const hasReview = (group) =>
   );
 export const stableAnchor = (entity) => `anchor-${entity.id}`;
 export function validateDocument(document) {
-  if (![1, 2, 3, 4, 5, SCHEMA_VERSION].includes(document?.schemaVersion))
+  if (document?.schemaVersion !== SCHEMA_VERSION)
     throw Error('Unsupported schema version');
   for (const group of [
     ...(document?.sections || []),

@@ -61,6 +61,9 @@ export function removeEmptyListItem(block, index) {
     ),
   };
 }
+export function canDeleteListItem(item) {
+  return !item?.runs?.some((run) => run.text.trim());
+}
 export function insertTableRowBeforeTotals(block, makeId) {
   let index =
     block.rows.reduce((last, row, i) => (row.isTotal ? last : i), -1) + 1;

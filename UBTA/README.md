@@ -37,7 +37,7 @@ Linked text remains directly editable. Click linked text to follow it, or place 
 
 Image URLs must use HTTPS and end in `.png`, `.jpg`, `.jpeg`, `.gif` or `.webp` (a query string or fragment may follow). Because external images are referenced rather than embedded, they must remain available at their published URL for the preview to display them and may require an internet connection.
 
-Schema version 4 no longer accepts `data:` URLs. Drafts, saved versions, recovery records and snapshots from earlier schema versions that contain base64-embedded images are rejected with migration guidance instead of silently losing those images. Publish each legacy image at a supported HTTPS URL and replace its `src` before importing that record. Earlier records containing only supported HTTPS image URLs continue to migrate normally.
+Only the current schema is accepted. This prototype has no historic-data compatibility layer; incompatible drafts, versions, recovery records, and snapshots are rejected rather than migrated.
 
 ## Deliberately deferred
 

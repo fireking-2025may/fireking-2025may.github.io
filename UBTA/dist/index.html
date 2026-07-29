@@ -7,7 +7,7 @@
   --ink: #111;
   --toolbar-blue: #17365d;
   --toolbar-yellow: #ffd966;
-  --font: Arial, "Helvetica Neue", sans-serif;
+  --font: Arial, 'Helvetica Neue', sans-serif;
 }
 * {
   box-sizing: border-box;
@@ -556,6 +556,16 @@ dialog label {
 .total-toggle input {
   accent-color: var(--toolbar-yellow);
 }
+.delete-list-item {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 2mm;
+  font-size: 8pt;
+}
+.delete-list-item:disabled {
+  visibility: hidden;
+}
 @media print {
   .list-trailing-hit-area {
     display: none !important;
@@ -581,7 +591,7 @@ dialog label {
   font: inherit;
   font-weight: 700;
 }
-.editor-switcher button[aria-current="page"] {
+.editor-switcher button[aria-current='page'] {
   background: var(--toolbar-yellow);
 }
 .excel-toolbar[hidden],
@@ -616,7 +626,7 @@ dialog label {
 .company-tabs button {
   padding: 10px 16px;
 }
-.company-tabs button[aria-selected="true"] {
+.company-tabs button[aria-selected='true'] {
   background: #17365d;
   color: #fff;
 }
@@ -689,7 +699,7 @@ dialog label {
   font-weight: 700;
   background: #eef0f3;
 }
-.share-table td[data-editable="true"]:focus {
+.share-table td[data-editable='true']:focus {
   outline: 3px solid #3578bd;
   outline-offset: -3px;
 }
@@ -752,6 +762,9 @@ dialog label {
   margin-left: auto;
   color: var(--grey);
   font-size: 9.5pt;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 }
 .header-details b {
   color: var(--coral);
@@ -877,32 +890,32 @@ a {
   margin: 0;
   padding-left: 8mm;
 }
-.list-item {
+.list-row {
   margin: 1.5mm 0;
   padding-left: 2mm;
 }
-.list-item[data-level="2"] {
+.list-row[data-level="2"] {
   margin-left: 9mm;
 }
-.list-item[data-level="3"] {
+.list-row[data-level="3"] {
   margin-left: 18mm;
 }
-.list-block[data-list-type="numberList"] .list-item[data-level="1"] {
+.list-block[data-list-type="numberList"] .list-row[data-level="1"] {
   list-style-type: decimal;
 }
-.list-block[data-list-type="numberList"] .list-item[data-level="2"] {
+.list-block[data-list-type="numberList"] .list-row[data-level="2"] {
   list-style-type: lower-alpha;
 }
-.list-block[data-list-type="numberList"] .list-item[data-level="3"] {
+.list-block[data-list-type="numberList"] .list-row[data-level="3"] {
   list-style-type: lower-roman;
 }
-.list-block[data-list-type="bulletList"] .list-item[data-level="1"] {
+.list-block[data-list-type="bulletList"] .list-row[data-level="1"] {
   list-style-type: disc;
 }
-.list-block[data-list-type="bulletList"] .list-item[data-level="2"] {
+.list-block[data-list-type="bulletList"] .list-row[data-level="2"] {
   list-style-type: circle;
 }
-.list-block[data-list-type="bulletList"] .list-item[data-level="3"] {
+.list-block[data-list-type="bulletList"] .list-row[data-level="3"] {
   list-style-type: square;
 }
 .toc {
@@ -1086,6 +1099,11 @@ h4,
   .column-resizer {
     display: none !important;
   }
+  .delete-list-item,
+  .list-trailing-hit-area {
+    display: none !important;
+  }
+  a[href] { pointer-events: auto !important; }
 }
 .continuation-heading {
   font-size: 12pt;
@@ -1271,6 +1289,10 @@ h4,
             </button>
           </div>
           <div class="command-row">
+            <label data-table-command class="total-toggle">
+              <input id="table-totals-enabled" type="checkbox" />
+              Show totals row
+            </label>
             <button data-command="addColumn" data-table-command>
               Add column
             </button>
@@ -2743,6 +2765,9 @@ function normaliseBlock(block) {
     output.captionRuns = normaliseRuns(
       block.captionRuns || [{ text: block.caption ?? '' }],
     );
+    output.totalsEnabled =
+      block.totalsEnabled !== false &&
+      (block.totalsEnabled === true || block.rows?.some((row) => row?.isTotal));
     output.columns = Array.from({ length: count }, (_, i) => {
       const format = tableColumnFormat(source[i]);
       return {
@@ -2766,6 +2791,15 @@ function normaliseBlock(block) {
         ),
       }),
     );
+    if (output.totalsEnabled && !output.rows.some((row) => row.isTotal))
+      output.rows.push({
+        id: newId('total'),
+        isTotal: true,
+        cells: output.columns.map((column) => ({
+          id: newId(`total-${column.id}`),
+          runs: [],
+        })),
+      });
     recalculateTableTotals(output);
   } else {
     output.src = safeImageSrc(block.src);
@@ -2851,7 +2885,7 @@ const hasReview = (group) =>
   );
 const stableAnchor = (entity) => `anchor-${entity.id}`;
 function validateDocument(document) {
-  if (![1, 2, 3, 4, 5, SCHEMA_VERSION].includes(document?.schemaVersion))
+  if (document?.schemaVersion !== SCHEMA_VERSION)
     throw Error('Unsupported schema version');
   for (const group of [
     ...(document?.sections || []),
@@ -3228,6 +3262,8 @@ function deleteTableRowOperation(document, blockId, rowId) {
   if (!found) return unchanged(document, 'table-not-found');
   const index = found.block.rows.findIndex((row) => row.id === rowId);
   if (index < 0) return unchanged(document, 'row-not-found');
+  if (found.block.rows[index].isTotal)
+    return unchanged(document, 'total-row-cannot-delete');
   const next = copy(document),
     block = locateTable(next, blockId).block;
   block.rows.splice(index, 1);
@@ -3763,6 +3799,9 @@ function removeEmptyListItem(block, index) {
     ),
   };
 }
+function canDeleteListItem(item) {
+  return !item?.runs?.some((run) => run.text.trim());
+}
 function insertTableRowBeforeTotals(block, makeId) {
   let index =
     block.rows.reduce((last, row, i) => (row.isTotal ? last : i), -1) + 1;
@@ -4035,7 +4074,7 @@ function renderList(block, renderRuns, escapeAttribute = String) {
       counters[level - 1]++;
       counters.fill(0, level);
       const value = tag === 'ol' ? ` value="${counters[level - 1]}"` : '';
-      return `<li class="list-item" contenteditable="true" data-container="item" data-item-id="${escapeAttribute(item.id)}" data-level="${level}" aria-level="${level}"${value}>${renderRuns(item.runs)}</li>`;
+      return `<li class="list-row" data-level="${level}"><span class="list-item" contenteditable="true" data-container="item" data-item-id="${escapeAttribute(item.id)}" data-level="${level}" aria-level="${level}"${value}>${renderRuns(item.runs)}</span><button class="delete-list-item" type="button" data-list-delete="${escapeAttribute(item.id)}" aria-label="Delete empty list line"${item.runs?.some((run) => run.text.trim()) ? ' disabled title="Only empty list lines can be deleted"' : ''}>Delete</button></li>`;
     })
     .join('');
   return `<${tag} class="list-items" data-list-type="${block.type}">${items}</${tag}><button class="list-trailing-hit-area" type="button" aria-label="Add another list item" data-list-append></button>`;
@@ -4732,7 +4771,7 @@ function brandHTML() {
 function header() {
   const x = document.createElement('header');
   x.className = 'page-header';
-  x.innerHTML = `<span class="header-brand">${brandHTML()}</span>`;
+  x.innerHTML = `<span class="header-brand">${brandHTML()}</span><span class="header-details"><span>${esc(state.meta.clientName)}</span><b>${esc(state.meta.documentType)}</b><span>${esc(state.meta.version)}</span></span>`;
   return x;
 }
 function sheet(kind) {
@@ -4773,7 +4812,7 @@ function blockElement(block) {
         attrs = `data-container="cell" data-row="${ri}" data-column="${ci}" data-row-id="${esc(row.id)}" data-column-id="${esc(block.columns[ci].id)}" data-cell-id="${esc(cell.id)}"`;
       return `<td class="format-${format}">${row.isTotal && numeric ? `<output ${attrs}>${esc(display)}</output>` : editableRuns(numeric ? [{ text: display }] : cell.runs, attrs)}</td>`;
     };
-    x.innerHTML = `<table><caption>${editableRuns(block.captionRuns, 'data-container="caption"')}</caption><colgroup>${block.columns.map((c) => `<col style="width:${c.width}%">`).join('')}</colgroup><thead><tr>${block.columns.map((c, i) => `<th class="format-${tableColumnFormat(c)}">${editableRuns(c.headingRuns, `data-container="heading" data-column="${i}"`)}</th>`).join('')}</tr></thead><tbody>${block.rows.map((r, ri) => `<tr class="${r.isTotal ? 'total-row' : ''}" data-row="${ri}">${r.cells.map((c, ci) => cellHTML(c, r, ri, ci)).join('')}</tr>`).join('')}</tbody></table>`;
+    x.innerHTML = `<table><caption>${editableRuns(block.captionRuns, 'data-container="caption"')}</caption><colgroup>${block.columns.map((c) => `<col style="width:${c.width}%">`).join('')}</colgroup><thead><tr>${block.columns.map((c, i) => `<th class="format-${tableColumnFormat(c)}">${editableRuns(c.headingRuns, `data-container="heading" data-column="${i}"`)}</th>`).join('')}</tr></thead><tbody>${block.rows.map((r, ri) => (r.isTotal && !block.totalsEnabled ? '' : `<tr class="${r.isTotal ? 'total-row' : ''}" data-row="${ri}">${r.cells.map((c, ci) => cellHTML(c, r, ri, ci)).join('')}</tr>`)).join('')}</tbody></table>`;
   } else {
     x.classList.add('image-block');
     x.innerHTML = block.src
@@ -5230,7 +5269,7 @@ function bindEditing() {
     });
   });
   document
-    .querySelectorAll('.list-block > :is(ol,ul) > li[data-container="item"]')
+    .querySelectorAll('.list-block > :is(ol,ul) > li > [data-container="item"]')
     .forEach((el) => {
       el.addEventListener('keydown', listKeydown);
       el.addEventListener('blur', (event) => listBlur(event, el));
@@ -5239,8 +5278,14 @@ function bindEditing() {
     .querySelectorAll('[data-list-append]')
     .forEach((el) => el.addEventListener('click', appendListItem));
   document
+    .querySelectorAll('[data-list-delete]')
+    .forEach((el) => el.addEventListener('click', deleteListItem));
+  document
     .querySelectorAll('[data-type="heading"] > [data-container="block"]')
     .forEach((el) => el.addEventListener('keydown', headingEnter));
+  document
+    .querySelectorAll('[data-type="paragraph"] > [data-container="block"]')
+    .forEach((el) => el.addEventListener('keydown', bodyShortcut));
   document
     .querySelectorAll('[data-container=cell]')
     .forEach((el) => el.addEventListener('keydown', tableTab));
@@ -5268,6 +5313,56 @@ function bindEditing() {
         navigateToAnchor(a.getAttribute('href').slice(1));
       }),
   );
+}
+function deleteListItem(event) {
+  const button = event.currentTarget,
+    blockId = button.closest('[data-block-id]')?.dataset.blockId,
+    { block } = findBlock(blockId),
+    index = block?.items?.findIndex(
+      (item) => item.id === button.dataset.listDelete,
+    );
+  flushAll();
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    !canDeleteListItem(block.items[index])
+  ) {
+    announce('Only empty list lines can be deleted');
+    return;
+  }
+  commit(() => {
+    block.items.splice(index, 1);
+    if (!block.items.length)
+      block.items.push({ id: newId('item'), level: 1, runs: [] });
+    const target = block.items[Math.min(index, block.items.length - 1)];
+    editorSelection.itemId = target.id;
+    editorSelection.offsets = [0, 0];
+  });
+  announce('Empty list line deleted');
+}
+function bodyShortcut(event) {
+  if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+  event.preventDefault();
+  const el = event.currentTarget;
+  flushTarget(el);
+  const { group, block } = findBlock(
+    el.closest('[data-block-id]').dataset.blockId,
+  );
+  if (!group || block?.type !== 'paragraph') return;
+  const id = newId('block');
+  const result = insertBlockOperation(
+    state,
+    group.id,
+    { id, type: 'paragraph', runs: [] },
+    group.blocks.indexOf(block) + 1,
+  );
+  if (applyDocumentOperation(result))
+    Object.assign(editorSelection, {
+      activeBlockId: id,
+      blockType: 'paragraph',
+      container: 'block',
+      offsets: [0, 0],
+    });
 }
 function headingEnter(e) {
   if (e.key !== 'Enter' || e.shiftKey) return;
@@ -5324,7 +5419,9 @@ function listKeydown(e) {
     editorSelection.itemId = block.items[target].id;
     editorSelection.offsets = [offset, offset];
     restoreTextSelection(
-      el.parentElement.children[target],
+      el
+        .closest('.list-items')
+        .children[target].querySelector('[data-container="item"]'),
       editorSelection.offsets,
     );
     return;
@@ -6038,6 +6135,9 @@ function updateControls() {
   total.disabled =
     !selectedColumn || tableColumnFormat(selectedColumn) === 'text';
   total.checked = !!selectedColumn?.totalEnabled;
+  const tableTotals = $('#table-totals-enabled');
+  tableTotals.checked = Boolean(block?.type === 'table' && block.totalsEnabled);
+  tableTotals.disabled = block?.type !== 'table';
 }
 document.querySelectorAll('[data-command]').forEach((b) => {
   b.addEventListener('pointerdown', (e) => {
@@ -6081,6 +6181,24 @@ $('#column-total-enabled').onchange = (e) => {
   applyDocumentOperation(
     setTableColumnTotalOperation(state, block.id, column.id, e.target.checked),
   );
+};
+$('#table-totals-enabled').onchange = (event) => {
+  flushAll();
+  const { block } = findBlock(editorSelection.activeBlockId);
+  if (block?.type !== 'table') return;
+  commit(() => {
+    block.totalsEnabled = event.target.checked;
+    if (block.totalsEnabled && !block.rows.some((row) => row.isTotal))
+      block.rows.push({
+        id: newId('total'),
+        isTotal: true,
+        cells: block.columns.map((column) => ({
+          id: newId(`total-${column.id}`),
+          runs: [],
+        })),
+      });
+    recalculateTableTotals(block);
+  });
 };
 const linkDialog = $('#link-picker');
 let applyingLink = false;
@@ -6478,6 +6596,7 @@ document.addEventListener('keydown', (event) => {
   if (key === 'z') action = event.shiftKey ? 'redo' : 'undo';
   else if (key === 'y' && !event.shiftKey) action = 'redo';
   else if (key === 's') action = event.shiftKey ? 'export' : 'save';
+  else if (key === 'p' && !event.shiftKey) action = 'export';
   if (!action) return;
   event.preventDefault();
   flushAll();
