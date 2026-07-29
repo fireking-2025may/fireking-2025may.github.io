@@ -58,6 +58,15 @@ test('production bundle defines ExcelEditor before creating it', () => {
   assert.ok(construction > definition, 'ExcelEditor must be defined before it is constructed');
 });
 
+test('Excel Shares keeps the main toolbar and hides the Steps Plan preview', () => {
+  const source = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'src/styles/app.css'), 'utf8');
+
+  assert.match(source, /\$\('#preview'\)\.hidden=excel/);
+  assert.doesNotMatch(source, /\$\('#steps-toolbar'\)\.hidden=excel/);
+  assert.match(css, /#preview\[hidden\]\{display:none!important\}/);
+});
+
 test('production bundle contains valid JavaScript and resolves table re-exports', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
