@@ -11,8 +11,10 @@ export function validateImageSource(value) {
     return { ok: false, error: 'malformed-source' };
   }
 
-  if (url.protocol !== 'https:') return { ok: false, error: 'unsupported-protocol' };
-  if (!SUPPORTED_IMAGE_PATH.test(url.pathname)) return { ok: false, error: 'unsupported-extension' };
+  if (url.protocol !== 'https:')
+    return { ok: false, error: 'unsupported-protocol' };
+  if (!SUPPORTED_IMAGE_PATH.test(url.pathname))
+    return { ok: false, error: 'unsupported-extension' };
   return { ok: true, url: url.href };
 }
 

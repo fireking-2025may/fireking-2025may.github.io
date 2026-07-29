@@ -21,7 +21,8 @@
     const body = sheet.querySelector('.document-body');
     if (!body) return false;
     const style = getComputedStyle(sheet);
-    const limit = sheet.getBoundingClientRect().bottom - parseFloat(style.paddingBottom);
+    const limit =
+      sheet.getBoundingClientRect().bottom - parseFloat(style.paddingBottom);
     return body.getBoundingClientRect().bottom > limit + 0.5;
   }
 
@@ -29,18 +30,23 @@
     const sheet = document.createElement(source.tagName);
     sheet.className = source.className;
     sheet.tabIndex = -1;
-    for (const [key, value] of Object.entries(source.dataset)) sheet.dataset[key] = value;
+    for (const [key, value] of Object.entries(source.dataset))
+      sheet.dataset[key] = value;
     if (!continuation && source.id) sheet.id = source.id;
     else if (source.id) sheet.dataset.anchorId = source.id;
     const header = source.querySelector(':scope > .page-header');
     if (header) sheet.append(header.cloneNode(true));
-    const heading = source.querySelector(':scope > .step-heading, :scope > .section-title');
+    const heading = source.querySelector(
+      ':scope > .step-heading, :scope > .section-title',
+    );
     if (heading) {
       if (!continuation) sheet.append(heading.cloneNode(true));
       else {
         const continued = document.createElement('div');
         continued.className = 'continuation-heading';
-        const title = heading.querySelector('.step-title')?.value || heading.textContent.trim();
+        const title =
+          heading.querySelector('.step-title')?.value ||
+          heading.textContent.trim();
         continued.textContent = `${title} — continued`;
         sheet.append(continued);
       }
@@ -52,7 +58,10 @@
   }
 
   function textLength(root) {
-    return [...root.querySelectorAll('[contenteditable=true]')].reduce((n, el) => n + el.textContent.length, 0);
+    return [...root.querySelectorAll('[contenteditable=true]')].reduce(
+      (n, el) => n + el.textContent.length,
+      0,
+    );
   }
 
   function textBoundary(root, offset) {
@@ -79,18 +88,28 @@
     const original = editable.cloneNode(true);
     const text = original.textContent;
     if (text.length < 2) return null;
-    let low = 1, high = text.length - 1, best = 0;
+    let low = 1,
+      high = text.length - 1,
+      best = 0;
     while (low <= high) {
       const middle = (low + high) >> 1;
       editable.replaceChildren(richTextSlice(original, 0, middle));
-      if (fit()) { best = middle; low = middle + 1; } else high = middle - 1;
+      if (fit()) {
+        best = middle;
+        low = middle + 1;
+      } else high = middle - 1;
     }
-    if (!best) { editable.replaceChildren(...original.cloneNode(true).childNodes); return null; }
+    if (!best) {
+      editable.replaceChildren(...original.cloneNode(true).childNodes);
+      return null;
+    }
     const breakAt = text.lastIndexOf(' ', best);
     best = breakAt > best / 2 ? breakAt + 1 : best;
     editable.replaceChildren(richTextSlice(original, 0, best));
     const rest = block.cloneNode(true);
-    rest.querySelector('[contenteditable=true]').replaceChildren(richTextSlice(original, best, text.length));
+    rest
+      .querySelector('[contenteditable=true]')
+      .replaceChildren(richTextSlice(original, best, text.length));
     block.dataset.fragmentPart = 'true';
     rest.dataset.fragmentPart = 'true';
     return rest;
@@ -104,11 +123,14 @@
     let keep = items.length;
     while (keep > 1 && !fit()) items[--keep].remove();
     if (!fit()) {
-      list.replaceChildren(...rest.querySelector(':scope > ol, :scope > ul').cloneNode(true).children);
+      list.replaceChildren(
+        ...rest.querySelector(':scope > ol, :scope > ul').cloneNode(true)
+          .children,
+      );
       return null;
     }
     const restList = rest.querySelector(':scope > ol, :scope > ul');
-    [...restList.children].slice(0, keep).forEach(el => el.remove());
+    [...restList.children].slice(0, keep).forEach((el) => el.remove());
     block.querySelector(':scope > .list-trailing-hit-area')?.remove();
     block.dataset.fragmentPart = rest.dataset.fragmentPart = 'true';
     return rest;
@@ -122,10 +144,14 @@
     while (keep > 1 && !fit()) rows[--keep].remove();
     if (!fit()) {
       const sourceBody = rest.querySelector('tbody');
-      block.querySelector('tbody').replaceChildren(...sourceBody.cloneNode(true).children);
+      block
+        .querySelector('tbody')
+        .replaceChildren(...sourceBody.cloneNode(true).children);
       return null;
     }
-    [...rest.querySelectorAll('tbody > tr')].slice(0, keep).forEach(el => el.remove());
+    [...rest.querySelectorAll('tbody > tr')]
+      .slice(0, keep)
+      .forEach((el) => el.remove());
     block.dataset.fragmentPart = rest.dataset.fragmentPart = 'true';
     return rest;
   }
@@ -138,14 +164,18 @@
   }
 
   function fragmentGroup(source, target) {
-    const blocks = [...source.querySelectorAll(':scope > .document-body > .editable-block')].map(x => x.cloneNode(true));
+    const blocks = [
+      ...source.querySelectorAll(':scope > .document-body > .editable-block'),
+    ].map((x) => x.cloneNode(true));
     let fragment = 0;
     let sheet = cloneShell(source, false);
     let page = pageFor(sheet, target);
     const decorate = () => {
       page.dataset.pageFragment = String(fragment);
       page.dataset.groupId = source.dataset.editableGroupId || '';
-      page.dataset.groupType = source.dataset.groupType || (source.classList.contains('section') ? 'section' : '');
+      page.dataset.groupType =
+        source.dataset.groupType ||
+        (source.classList.contains('section') ? 'section' : '');
       page.dataset.anchorId = source.id || '';
       sheet.dataset.fragmentIndex = String(fragment);
     };
@@ -164,7 +194,11 @@
       if (!overflows(sheet)) continue;
       const hadPrevious = body.children.length > 1;
       if (hadPrevious) {
-        const heading = block.matches('[data-type="paragraph"]') && block.previousElementSibling?.matches('[data-type="heading"]') ? block.previousElementSibling : null;
+        const heading =
+          block.matches('[data-type="paragraph"]') &&
+          block.previousElementSibling?.matches('[data-type="heading"]')
+            ? block.previousElementSibling
+            : null;
         block.remove();
         heading?.remove();
         body = nextPage();
@@ -174,7 +208,8 @@
       if (overflows(sheet)) {
         const rest = fragmentBlock(block, sheet);
         if (rest) blocks.splice(index + 1, 0, rest);
-        else if (block.classList.contains('image-block')) block.classList.add('fit-page');
+        else if (block.classList.contains('image-block'))
+          block.classList.add('fit-page');
       }
     }
   }
@@ -188,7 +223,8 @@
         document.body.append(target);
       }
       for (const source of [...content.children]) {
-        if (source.querySelector(':scope > .document-body')) fragmentGroup(source, target);
+        if (source.querySelector(':scope > .document-body'))
+          fragmentGroup(source, target);
         else pageFor(source.cloneNode(true), target);
       }
       target.classList.remove('pagination-staging');
@@ -198,4 +234,4 @@
   }
 
   window.Paged = { Previewer };
-}());
+})();
