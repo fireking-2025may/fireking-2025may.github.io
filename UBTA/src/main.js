@@ -166,10 +166,13 @@ const selectedEditableGroup = () =>
   ).find((x) => x.id === editorSelection.activeGroupId);
 const appendixLabel = (index) => `Appendix ${String.fromCharCode(65 + index)}`;
 
+function brandHTML() {
+  return `<span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="brand-wordmark">UBTA</span>`;
+}
 function header() {
   const x = document.createElement('header');
   x.className = 'page-header';
-  x.innerHTML = `<span class="header-brand">UBTA</span><span class="header-details">${esc(state.meta.clientName)} · ${esc(state.meta.projectTitle)} · ${esc(state.meta.version)}</span>`;
+  x.innerHTML = `<span class="header-brand">${brandHTML()}</span>`;
   return x;
 }
 function sheet(kind) {
@@ -242,7 +245,7 @@ function groupSheet(group, title, kind) {
 }
 function cover() {
   const x = sheet('cover');
-  x.innerHTML += `<div class="cover-kicker">${esc(state.meta.documentType)} · ${esc(state.meta.status)}</div><h1>${esc(state.meta.clientName)}</h1><h2>${esc(state.meta.projectTitle)}</h2><p>${esc(state.meta.subtitle)}</p><p>${esc(state.meta.date)} · ${esc(state.meta.adviser)} · ${esc(state.meta.version)}</p>`;
+  x.innerHTML += `<h1><span>${esc(state.meta.clientName)}</span><span>${esc(state.meta.projectTitle)}</span></h1><p class="cover-subtitle">${esc(state.meta.subtitle)}</p><p class="cover-date">${esc(state.meta.date)}</p>`;
   return x;
 }
 function contentsEntries() {

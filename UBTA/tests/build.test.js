@@ -14,6 +14,16 @@ const compactCss = (css) =>
     .replace(/\s*([{}:;,>])\s*/g, '$1')
     .replace(/;}\s*/g, '}');
 
+test('document bundle includes the UBTA report wordmark and print layout', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+
+  assert.match(html, /class="brand-mark"/);
+  assert.match(html, /class="brand-wordmark">UBTA/);
+  assert.match(compactCss(html), /\.step-heading\{display:grid;grid-template-columns:max-content 1fr/);
+  assert.match(compactCss(html), /\.cover-date\{position:absolute/);
+});
+
 test('production bundle includes the blank-space insertion helper before its caller', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
@@ -141,7 +151,10 @@ test('heading titles use exactly one normal-flow representation in screen and pr
   const css = compactCss(
     fs.readFileSync(path.join(root, 'src/styles/document.css'), 'utf8'),
   );
-  assert.match(css, /\.step-heading\{display:block\}/);
+  assert.match(
+    css,
+    /\.step-heading\{display:grid;grid-template-columns:max-content 1fr/,
+  );
   assert.match(css, /\.step-title-print\{display:none;/);
   assert.match(
     css,
