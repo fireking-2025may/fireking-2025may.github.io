@@ -61,6 +61,7 @@ import {
   confirmStepDeletion,
   splitListRuns,
   removeEmptyListItem,
+  canDeleteListItem,
   restoreTextSelection,
 } from './editor/interactions.js';
 import { RepaginationScheduler } from './editor/repagination.js';
@@ -175,7 +176,7 @@ function brandHTML() {
 function header() {
   const x = document.createElement('header');
   x.className = 'page-header';
-  x.innerHTML = `<span class="header-brand">${brandHTML()}</span>`;
+  x.innerHTML = `<span class="header-brand">${brandHTML()}</span><span class="header-details"><span>${esc(state.meta.clientName)}</span><b>${esc(state.meta.documentType)}</b><span>${esc(state.meta.version)}</span></span>`;
   return x;
 }
 function sheet(kind) {
@@ -216,7 +217,7 @@ function blockElement(block) {
         attrs = `data-container="cell" data-row="${ri}" data-column="${ci}" data-row-id="${esc(row.id)}" data-column-id="${esc(block.columns[ci].id)}" data-cell-id="${esc(cell.id)}"`;
       return `<td class="format-${format}">${row.isTotal && numeric ? `<output ${attrs}>${esc(display)}</output>` : editableRuns(numeric ? [{ text: display }] : cell.runs, attrs)}</td>`;
     };
-    x.innerHTML = `<table><caption>${editableRuns(block.captionRuns, 'data-container="caption"')}</caption><colgroup>${block.columns.map((c) => `<col style="width:${c.width}%">`).join('')}</colgroup><thead><tr>${block.columns.map((c, i) => `<th class="format-${tableColumnFormat(c)}">${editableRuns(c.headingRuns, `data-container="heading" data-column="${i}"`)}</th>`).join('')}</tr></thead><tbody>${block.rows.map((r, ri) => `<tr class="${r.isTotal ? 'total-row' : ''}" data-row="${ri}">${r.cells.map((c, ci) => cellHTML(c, r, ri, ci)).join('')}</tr>`).join('')}</tbody></table>`;
+    x.innerHTML = `<table><caption>${editableRuns(block.captionRuns, 'data-container="caption"')}</caption><colgroup>${block.columns.map((c) => `<col style="width:${c.width}%">`).join('')}</colgroup><thead><tr>${block.columns.map((c, i) => `<th class="format-${tableColumnFormat(c)}">${editableRuns(c.headingRuns, `data-container="heading" data-column="${i}"`)}</th>`).join('')}</tr></thead><tbody>${block.rows.map((r, ri) => (r.isTotal && !block.totalsEnabled ? '' : `<tr class="${r.isTotal ? 'total-row' : ''}" data-row="${ri}">${r.cells.map((c, ci) => cellHTML(c, r, ri, ci)).join('')}</tr>`)).join('')}</tbody></table>`;
   } else {
     x.classList.add('image-block');
     x.innerHTML = block.src
@@ -673,7 +674,7 @@ function bindEditing() {
     });
   });
   document
-    .querySelectorAll('.list-block > :is(ol,ul) > li[data-container="item"]')
+    .querySelectorAll('.list-block > :is(ol,ul) > li > [data-container="item"]')
     .forEach((el) => {
       el.addEventListener('keydown', listKeydown);
       el.addEventListener('blur', (event) => listBlur(event, el));
@@ -682,8 +683,14 @@ function bindEditing() {
     .querySelectorAll('[data-list-append]')
     .forEach((el) => el.addEventListener('click', appendListItem));
   document
+    .querySelectorAll('[data-list-delete]')
+    .forEach((el) => el.addEventListener('click', deleteListItem));
+  document
     .querySelectorAll('[data-type="heading"] > [data-container="block"]')
     .forEach((el) => el.addEventListener('keydown', headingEnter));
+  document
+    .querySelectorAll('[data-type="paragraph"] > [data-container="block"]')
+    .forEach((el) => el.addEventListener('keydown', bodyShortcut));
   document
     .querySelectorAll('[data-container=cell]')
     .forEach((el) => el.addEventListener('keydown', tableTab));
@@ -711,6 +718,56 @@ function bindEditing() {
         navigateToAnchor(a.getAttribute('href').slice(1));
       }),
   );
+}
+function deleteListItem(event) {
+  const button = event.currentTarget,
+    blockId = button.closest('[data-block-id]')?.dataset.blockId,
+    { block } = findBlock(blockId),
+    index = block?.items?.findIndex(
+      (item) => item.id === button.dataset.listDelete,
+    );
+  flushAll();
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    !canDeleteListItem(block.items[index])
+  ) {
+    announce('Only empty list lines can be deleted');
+    return;
+  }
+  commit(() => {
+    block.items.splice(index, 1);
+    if (!block.items.length)
+      block.items.push({ id: newId('item'), level: 1, runs: [] });
+    const target = block.items[Math.min(index, block.items.length - 1)];
+    editorSelection.itemId = target.id;
+    editorSelection.offsets = [0, 0];
+  });
+  announce('Empty list line deleted');
+}
+function bodyShortcut(event) {
+  if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+  event.preventDefault();
+  const el = event.currentTarget;
+  flushTarget(el);
+  const { group, block } = findBlock(
+    el.closest('[data-block-id]').dataset.blockId,
+  );
+  if (!group || block?.type !== 'paragraph') return;
+  const id = newId('block');
+  const result = insertBlockOperation(
+    state,
+    group.id,
+    { id, type: 'paragraph', runs: [] },
+    group.blocks.indexOf(block) + 1,
+  );
+  if (applyDocumentOperation(result))
+    Object.assign(editorSelection, {
+      activeBlockId: id,
+      blockType: 'paragraph',
+      container: 'block',
+      offsets: [0, 0],
+    });
 }
 function headingEnter(e) {
   if (e.key !== 'Enter' || e.shiftKey) return;
@@ -767,7 +824,9 @@ function listKeydown(e) {
     editorSelection.itemId = block.items[target].id;
     editorSelection.offsets = [offset, offset];
     restoreTextSelection(
-      el.parentElement.children[target],
+      el
+        .closest('.list-items')
+        .children[target].querySelector('[data-container="item"]'),
       editorSelection.offsets,
     );
     return;
@@ -1481,6 +1540,9 @@ function updateControls() {
   total.disabled =
     !selectedColumn || tableColumnFormat(selectedColumn) === 'text';
   total.checked = !!selectedColumn?.totalEnabled;
+  const tableTotals = $('#table-totals-enabled');
+  tableTotals.checked = Boolean(block?.type === 'table' && block.totalsEnabled);
+  tableTotals.disabled = block?.type !== 'table';
 }
 document.querySelectorAll('[data-command]').forEach((b) => {
   b.addEventListener('pointerdown', (e) => {
@@ -1524,6 +1586,24 @@ $('#column-total-enabled').onchange = (e) => {
   applyDocumentOperation(
     setTableColumnTotalOperation(state, block.id, column.id, e.target.checked),
   );
+};
+$('#table-totals-enabled').onchange = (event) => {
+  flushAll();
+  const { block } = findBlock(editorSelection.activeBlockId);
+  if (block?.type !== 'table') return;
+  commit(() => {
+    block.totalsEnabled = event.target.checked;
+    if (block.totalsEnabled && !block.rows.some((row) => row.isTotal))
+      block.rows.push({
+        id: newId('total'),
+        isTotal: true,
+        cells: block.columns.map((column) => ({
+          id: newId(`total-${column.id}`),
+          runs: [],
+        })),
+      });
+    recalculateTableTotals(block);
+  });
 };
 const linkDialog = $('#link-picker');
 let applyingLink = false;
@@ -1921,6 +2001,7 @@ document.addEventListener('keydown', (event) => {
   if (key === 'z') action = event.shiftKey ? 'redo' : 'undo';
   else if (key === 'y' && !event.shiftKey) action = 'redo';
   else if (key === 's') action = event.shiftKey ? 'export' : 'save';
+  else if (key === 'p' && !event.shiftKey) action = 'export';
   if (!action) return;
   event.preventDefault();
   flushAll();

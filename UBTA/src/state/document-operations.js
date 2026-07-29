@@ -227,6 +227,8 @@ function deleteTableRowOperation(document, blockId, rowId) {
   if (!found) return unchanged(document, 'table-not-found');
   const index = found.block.rows.findIndex((row) => row.id === rowId);
   if (index < 0) return unchanged(document, 'row-not-found');
+  if (found.block.rows[index].isTotal)
+    return unchanged(document, 'total-row-cannot-delete');
   const next = copy(document),
     block = locateTable(next, blockId).block;
   block.rows.splice(index, 1);
