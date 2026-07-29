@@ -117,8 +117,24 @@ test('standalone template unlock has embedded ciphertext and performs no runtime
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
   assert.match(html, /const defaultTemplateEnvelope\s*=/);
-  assert.match(html, /ciphertext:\s*'VgziFV2P5dlF/);
+  const canonical = JSON.parse(
+    fs.readFileSync(
+      path.resolve(root, '../encrypted-files/vault/8f3c1a7e4d92b605.json'),
+      'utf8',
+    ),
+  );
+  assert.ok(html.includes(canonical.ciphertext));
+  assert.ok(html.includes(canonical.salt));
+  assert.ok(html.includes(canonical.iv));
   assert.doesNotMatch(html, /fetch\(['"]\.\.\/\.\.\/encrypted-files/);
+  assert.doesNotMatch(html, /Stamp duty|Reusable paragraph content/);
+});
+
+test('defaults manager and homepage links resolve', () => {
+  const homepage = fs.readFileSync(path.resolve(root, '../index/index.html'), 'utf8');
+  assert.match(homepage, /\.\.\/encrypted-files\/defaults-editor\.html/);
+  for (const file of ['defaults-editor.html', 'defaults-editor.js', 'defaults-editor.css'])
+    assert.ok(fs.existsSync(path.resolve(root, '../encrypted-files', file)));
 });
 
 test('standalone build contains the complete print feature', () => {

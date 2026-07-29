@@ -64,3 +64,62 @@ export async function decryptEnvelope(e, password, subtle = crypto.subtle) {
     throw invalid();
   }
 }
+export function encodeBase64(bytes) {
+  let value = '';
+  for (const byte of bytes) value += String.fromCharCode(byte);
+  return btoa(value);
+}
+export const generateRandomBytes = (
+  length,
+  getRandomValues = (bytes) => crypto.getRandomValues(bytes),
+) => getRandomValues(new Uint8Array(length));
+export async function deriveEncryptionKey(
+  password,
+  salt,
+  subtle = crypto.subtle,
+) {
+  const material = await subtle.importKey(
+    'raw',
+    new TextEncoder().encode(String(password)),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  return subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 310000 },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt'],
+  );
+}
+export async function encryptEnvelope(
+  payload,
+  password,
+  { subtle = crypto.subtle, randomBytes = generateRandomBytes } = {},
+) {
+  const salt = randomBytes(16),
+    iv = randomBytes(12);
+  const key = await deriveEncryptionKey(password, salt, subtle);
+  const ciphertext = new Uint8Array(
+    await subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      new TextEncoder().encode(JSON.stringify(payload)),
+    ),
+  );
+  return {
+    version: 1,
+    algorithm: 'AES-GCM',
+    kdf: 'PBKDF2-SHA-256',
+    iterations: 310000,
+    salt: encodeBase64(salt),
+    iv: encodeBase64(iv),
+    ciphertext: encodeBase64(ciphertext),
+  };
+}
+export function validatePasswordConfirmation(password, confirmation) {
+  if (!password || password !== confirmation)
+    throw Error('Passwords must be non-empty and match.');
+  return password;
+}
