@@ -38,6 +38,16 @@ test('production bundle defines navigation history before creating it', () => {
   assert.ok(construction > definition, 'NavigationHistory must be defined before it is constructed');
 });
 
+test('production bundle defines Excel normalisation before document initialisation', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  const definition = html.indexOf('function normaliseExcel(');
+  const documentNormalisation = html.indexOf('excel:normaliseExcel(');
+
+  assert.notEqual(definition, -1, 'normaliseExcel must be bundled');
+  assert.ok(documentNormalisation > definition, 'normaliseExcel must be defined before normaliseDocument uses it');
+});
+
 test('production bundle contains valid JavaScript and resolves table re-exports', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
