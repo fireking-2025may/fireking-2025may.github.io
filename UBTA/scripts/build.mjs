@@ -1,7 +1,47 @@
-import fs from 'node:fs';import path from 'node:path';
-const root=path.resolve(import.meta.dirname,'..'),read=file=>fs.readFileSync(path.join(root,file),'utf8');
-const bundle=file=>read(file).replace(/^import .*;\n/gm,'').replace(/^export \{[^}]+\}(?: from ['"][^'"]+['"])?;\n?/gm,'').replace(/export /g,'');
-const modules=['src/editor/crypto.js','src/editor/default-template-data.js','src/editor/default-templates.js','src/state/table-model.js','src/state/image-model.js','src/state/excel-model.js','src/state/schema.js','src/state/document-operations.js','src/state/history.js','src/state/persistence.js','src/editor/dom-runs.js','src/editor/interactions.js','src/editor/repagination.js','src/editor/printing.js','src/editor/command-routing.js','src/editor/list-rendering.js','src/editor/block-deletion.js','src/editor/insertion-context.js','src/editor/callouts.js','src/editor/link-actions.js','src/editor/navigation-history.js','src/editor/excel-editor.js','src/main.js'];
-const css=['src/styles/app.css','src/styles/document.css'].map(read).join('\n'),vendor=read('src/vendor/paged.js'),body=read('src/index.html').match(/<body>([\s\S]*)<\/body>/)[1].replace(/<script[\s\S]*?<\/script>/g,'').trim();
-const html=`<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>UBTA Steps Plan Editor</title><style>${css}</style></head><body>${body}<script>${vendor}\n${modules.map(bundle).join('\n')}<\/script></body></html>`;
-fs.mkdirSync(path.join(root,'dist'),{recursive:true});fs.writeFileSync(path.join(root,'dist/index.html'),html);console.log(`Built dist/index.html (${html.length} bytes)`);
+import fs from 'node:fs';
+import path from 'node:path';
+
+const root = path.resolve(import.meta.dirname, '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const bundle = (file) =>
+  read(file)
+    .replace(/^import\s+[\s\S]*?\s+from\s+['"][^'"]+['"];?\n/gm, '')
+    .replace(/^export\s+\{[\s\S]*?\}(?:\s+from\s+['"][^'"]+['"])?;?\n?/gm, '')
+    .replace(/\bexport\s+/g, '');
+const modules = [
+  'src/editor/crypto.js',
+  'src/editor/default-template-data.js',
+  'src/editor/default-templates.js',
+  'src/state/table-model.js',
+  'src/state/image-model.js',
+  'src/state/excel-model.js',
+  'src/state/schema.js',
+  'src/state/document-operations.js',
+  'src/state/history.js',
+  'src/state/persistence.js',
+  'src/editor/dom-runs.js',
+  'src/editor/interactions.js',
+  'src/editor/repagination.js',
+  'src/editor/printing.js',
+  'src/editor/command-routing.js',
+  'src/editor/list-rendering.js',
+  'src/editor/block-deletion.js',
+  'src/editor/insertion-context.js',
+  'src/editor/callouts.js',
+  'src/editor/link-actions.js',
+  'src/editor/navigation-history.js',
+  'src/editor/excel-editor.js',
+  'src/main.js',
+];
+const css = ['src/styles/app.css', 'src/styles/document.css']
+    .map(read)
+    .join('\n'),
+  vendor = read('src/vendor/paged.js'),
+  body = read('src/index.html')
+    .match(/<body>([\s\S]*)<\/body>/)[1]
+    .replace(/<script[\s\S]*?<\/script>/g, '')
+    .trim();
+const html = `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>UBTA Steps Plan Editor</title><style>${css}</style></head><body>${body}<script>${vendor}\n${modules.map(bundle).join('\n')}<\/script></body></html>`;
+fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
+fs.writeFileSync(path.join(root, 'dist/index.html'), html);
+console.log(`Built dist/index.html (${html.length} bytes)`);
