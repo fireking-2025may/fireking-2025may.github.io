@@ -109,6 +109,7 @@
     }
     const restList = rest.querySelector(':scope > ol, :scope > ul');
     [...restList.children].slice(0, keep).forEach(el => el.remove());
+    block.querySelector(':scope > .list-trailing-hit-area')?.remove();
     block.dataset.fragmentPart = rest.dataset.fragmentPart = 'true';
     return rest;
   }
