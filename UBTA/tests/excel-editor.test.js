@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ExcelEditor } from '../src/editor/excel-editor.js';
+import { ExcelEditor, gridDestination } from '../src/editor/excel-editor.js';
 import { createExcel, syncSteps } from '../src/state/excel-model.js';
 
 const root = () => ({ innerHTML:'', querySelectorAll:() => [] });
@@ -45,6 +45,45 @@ test('opening and movement cells render as directly editable', () => {
 
   assert.match(document.element.innerHTML,/contenteditable="true"[^>]+data-step-id=""[^>]+data-editable="true"/);
   assert.match(document.element.innerHTML,/contenteditable="true"[^>]+data-step-id="step-1"[^>]+data-editable="true"/);
+  assert.match(document.element.innerHTML,/data-class-label data-grid-row="0" data-grid-column="1"/);
+  assert.match(document.element.innerHTML,/data-holder-name[^>]+data-grid-row="1" data-grid-column="0"/);
+});
+
+test('grid navigation includes shareholder and share class labels', () => {
+  const target = (row, column) => ({dataset:{gridRow:String(row), gridColumn:String(column)}});
+  const classLabel = target(0, 1);
+  const holderLabel = target(1, 0);
+  const firstValue = target(1, 1);
+  const secondValue = target(1, 2);
+  const targets = [classLabel, holderLabel, firstValue, secondValue];
+
+  assert.equal(gridDestination(targets, classLabel, 'ArrowDown'), firstValue);
+  assert.equal(gridDestination(targets, firstValue, 'ArrowLeft'), holderLabel);
+  assert.equal(gridDestination(targets, holderLabel, 'Tab'), firstValue);
+  assert.equal(gridDestination(targets, firstValue, 'Tab', true), holderLabel);
+  assert.equal(gridDestination(targets, firstValue, 'ArrowRight'), secondValue);
+});
+
+test('focusing a zero-valued share cell clears it ready for typing', () => {
+  const header = {dataset:{groupId:'group-1'}};
+  const table = {querySelectorAll:() => [header]};
+  const cell = {
+    dataset:{holderId:'holder-1', classId:'class-1'},
+    textContent:'0',
+    closest:() => table
+  };
+  const matches = {
+    '[data-grid-row][data-grid-column]':[cell],
+    'td[data-editable=true]':[cell]
+  };
+  const element = {querySelectorAll:selector => matches[selector] || []};
+  const document = {steps:[], excel:createExcel(), element};
+  const editor = new ExcelEditor({root:element, toolbar:toolbar(), getDocument:() => document, updateDocument:value => document.excel=value, report() {}});
+
+  editor.bindGrid();
+  cell.onfocus();
+
+  assert.equal(cell.textContent, '');
 });
 
 test('shareholder and header edits use stable row and column identities', () => {
