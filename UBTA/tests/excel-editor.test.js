@@ -36,3 +36,36 @@ test('Excel undo resynchronises an older snapshot with current steps', () => {
   assert.deepEqual(document.excel.syncedSteps,[{id:'new-step',label:'New step'}]);
   assert.deepEqual(document.excel.companies[0].movements['new-step'],{});
 });
+
+test('opening and movement cells render as directly editable', () => {
+  const document={steps:[{id:'step-1',title:'Transfer'}],excel:syncSteps(createExcel(),[{id:'step-1',title:'Transfer'}]),element:root()};
+  const editor=new ExcelEditor({root:document.element,toolbar:toolbar(),getDocument:()=>document,updateDocument:value=>document.excel=value,report() {}});
+
+  editor.render();
+
+  assert.match(document.element.innerHTML,/contenteditable="true"[^>]+data-step-id=""[^>]+data-editable="true"/);
+  assert.match(document.element.innerHTML,/contenteditable="true"[^>]+data-step-id="step-1"[^>]+data-editable="true"/);
+});
+
+test('shareholder and header edits use stable row and column identities', () => {
+  const excel=createExcel(),company=excel.companies[0],holder=company.shareholders[0],group=company.groups[0],shareClass=group.classes[0];
+  const holderName={dataset:{holderId:holder.id},value:'Renamed holder'},holderType={dataset:{holderId:holder.id},value:'Trust'};
+  const groupHeader={dataset:{groupId:group.id}},classHeader={dataset:{classId:shareClass.id}};
+  const groupName={value:'Voting shares',closest:()=>groupHeader},classLabel={value:'A',closest:()=>classHeader};
+  const matches={'[data-holder-name]':[holderName],'[data-holder-type]':[holderType],'[data-group-name]':[groupName],'[data-class-label]':[classLabel]};
+  const element={innerHTML:'',querySelectorAll:selector=>matches[selector]||[]};
+  const document={steps:[],excel,element};
+  const editor=new ExcelEditor({root:element,toolbar:toolbar(),getDocument:()=>document,updateDocument:value=>document.excel=value,report() {}});
+  editor.bindGrid();
+
+  holderName.onchange();
+  holderType.onchange();
+  groupName.onchange();
+  classLabel.onchange();
+
+  const updated=document.excel.companies[0];
+  assert.equal(updated.shareholders[0].name,'Renamed holder');
+  assert.equal(updated.shareholders[0].type,'Trust');
+  assert.equal(updated.groups[0].name,'Voting shares');
+  assert.equal(updated.groups[0].classes[0].label,'A');
+});
