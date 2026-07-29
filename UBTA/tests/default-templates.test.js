@@ -14,6 +14,7 @@ import {
   templateBlocks,
   validateTemplatePayload,
 } from '../src/editor/default-templates.js';
+import { applyPlainTextEdit } from '../../encrypted-files/rich-text.js';
 import { insertionIndex } from '../src/editor/insertion-context.js';
 import { History } from '../src/state/history.js';
 
@@ -59,6 +60,8 @@ test('opaque IDs have the fixed alphabet and regenerate collisions', () => {
 test('version 2 validates immutable rich records and rejects invalid IDs, links and duplicates', () => {
   const payload = valid(),
     result = validateTemplatePayload(payload);
+  assert.equal(result[0].id, payload.templates[0].id);
+  assert.equal(result[0].blocks[0].id, payload.templates[0].blocks[0].id);
   assert.equal(result[0].blocks[0].runs[0].highlight, true);
   assert.ok(Object.isFrozen(result[0].blocks[0]));
   for (const bad of [
@@ -79,6 +82,69 @@ test('version 2 validates immutable rich records and rejects invalid IDs, links 
   const duplicate = structuredClone(payload);
   duplicate.templates[0].blocks[0].id = duplicate.templates[0].id;
   assert.throws(() => validateTemplatePayload(duplicate), /malformed/);
+});
+test('normalization preserves numeric-leading opaque IDs at every nesting level', () => {
+  const payload = valid();
+  payload.templates[0].blocks = [
+    {
+      id: id(),
+      type: 'table',
+      captionRuns: [{ text: 'Caption' }],
+      columns: [
+        {
+          id: id(),
+          headingRuns: [{ text: 'Heading' }],
+          width: 100,
+          format: 'text',
+          totalEnabled: false,
+        },
+      ],
+      rows: [
+        {
+          id: id(),
+          isTotal: false,
+          cells: [{ id: id(), runs: [{ text: 'Value' }] }],
+        },
+      ],
+    },
+  ];
+  const expectedIds = [
+    payload.templates[0].blocks[0].id,
+    payload.templates[0].blocks[0].columns[0].id,
+    payload.templates[0].blocks[0].rows[0].id,
+    payload.templates[0].blocks[0].rows[0].cells[0].id,
+  ];
+
+  const normalized = validateTemplatePayload(payload)[0].blocks[0];
+  assert.deepEqual(
+    [
+      normalized.id,
+      normalized.columns[0].id,
+      normalized.rows[0].id,
+      normalized.rows[0].cells[0].id,
+    ],
+    expectedIds,
+  );
+  validateTemplatePayload({
+    type: 'editor-defaults',
+    schemaVersion: 2,
+    templates: [{ ...payload.templates[0], blocks: [normalized] }],
+  });
+});
+test('plain-text edits retain links and review highlights on rich runs', () => {
+  const original = [
+    { text: 'Linked', link: { href: 'https://example.com' } },
+    { text: ' review', highlight: true },
+  ];
+
+  const replaced = applyPlainTextEdit(original, 'LinkXd review');
+  const edited = applyPlainTextEdit(replaced, 'LinkXd review!');
+
+  assert.deepEqual(edited, [
+    { text: 'LinkXd', link: { href: 'https://example.com' } },
+    { text: ' review!', highlight: true },
+  ]);
+  assert.notEqual(edited[0].link, original[0].link);
 });
 test('legacy migration preserves Unicode, order and content while replacing descriptive IDs once', () => {
   counter = 1;

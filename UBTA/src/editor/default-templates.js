@@ -125,6 +125,32 @@ function assertBlock(block, ids) {
   const normalized = normaliseBlock(block);
   if (normalized.type !== block.type) throw malformed();
 }
+
+function normaliseTemplateBlock(block) {
+  const normalized = normaliseBlock(block);
+  normalized.id = block.id;
+
+  if (block.items) {
+    normalized.items.forEach((item, index) => {
+      item.id = block.items[index].id;
+    });
+  }
+  if (block.columns) {
+    normalized.columns.forEach((column, index) => {
+      column.id = block.columns[index].id;
+    });
+  }
+  if (block.rows) {
+    normalized.rows.forEach((row, rowIndex) => {
+      row.id = block.rows[rowIndex].id;
+      row.cells.forEach((cell, cellIndex) => {
+        cell.id = block.rows[rowIndex].cells[cellIndex].id;
+      });
+    });
+  }
+
+  return normalized;
+}
 const immutable = (value) => {
   if (value && typeof value === 'object') {
     Object.values(value).forEach(immutable);
@@ -156,7 +182,7 @@ export function validateTemplatePayload(payload) {
     return {
       id: template.id,
       header: template.header.trim(),
-      blocks: template.blocks.map((block) => normaliseBlock(block)),
+      blocks: template.blocks.map(normaliseTemplateBlock),
     };
   });
   return immutable(templates);
