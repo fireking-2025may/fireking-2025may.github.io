@@ -7,6 +7,11 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const compactCss = (css) => css
+  .replace(/\n\s*/g, ' ')
+  .replace(/\s*!important/g, '!important')
+  .replace(/\s*([{}:;,>])\s*/g, '$1')
+  .replace(/;}\s*/g, '}');
 
 test('production bundle includes the blank-space insertion helper before its caller', () => {
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
@@ -64,7 +69,7 @@ test('Excel Shares keeps the main toolbar and hides the Steps Plan preview', () 
 
   assert.match(source, /\$\('#preview'\)\.hidden=excel/);
   assert.doesNotMatch(source, /\$\('#steps-toolbar'\)\.hidden=excel/);
-  assert.match(css, /#preview\[hidden\]\{display:none!important\}/);
+  assert.match(compactCss(css), /#preview\[hidden\]\{display:none!important\}/);
 });
 
 test('production bundle contains valid JavaScript and resolves table re-exports', () => {
@@ -95,13 +100,13 @@ test('standalone build contains the complete print feature', () => {
   assert.match(html, /window\.print\(\)/);
   assert.match(html, /Print preparation failed:/);
   assert.match(html, /@media print/);
-  assert.match(html, /width:297mm!important;height:210mm!important/);
-  assert.match(html, /\.pagedjs_page:last-child\{break-after:auto/);
-  assert.match(html, /\.step-title-print\{display:none/);
+  assert.match(compactCss(html), /width:297mm!important;height:210mm!important/);
+  assert.match(compactCss(html), /\.pagedjs_page:last-child\{break-after:auto/);
+  assert.match(compactCss(html), /\.step-title-print\{display:none/);
 });
 
 test('heading titles use exactly one normal-flow representation in screen and print', () => {
-  const css = fs.readFileSync(path.join(root, 'src/styles/document.css'), 'utf8');
+  const css = compactCss(fs.readFileSync(path.join(root, 'src/styles/document.css'), 'utf8'));
   assert.match(css, /\.step-heading\{display:block\}/);
   assert.match(css, /\.step-title-print\{display:none;/);
   assert.match(css, /\.step-heading>\.step-title\{display:block;position:static\}/);
@@ -114,7 +119,7 @@ test('heading titles use exactly one normal-flow representation in screen and pr
 
 test('A4 print wrappers override responsive preview scaling consistently', () => {
   const css = fs.readFileSync(path.join(root, 'src/styles/app.css'), 'utf8');
-  const print = css.slice(css.indexOf('@media print'));
+  const print = compactCss(css.slice(css.indexOf('@media print')));
   assert.match(print, /@page\{size:A4 landscape;margin:0\}/);
   assert.match(print, /html,body\{width:297mm!important;min-width:297mm!important[^}]*zoom:1!important;transform:none!important/);
   assert.match(print, /#preview \.pagedjs_pagebox,#preview \.sheet-source\{width:297mm!important;height:210mm!important/);
@@ -132,7 +137,7 @@ test('source and standalone toolbars omit global insertion controls but retain c
     for (const command of ['addParagraph', 'addHeading', 'addBulletList', 'addNumberList', 'addTable', 'addImage']) {
       assert.doesNotMatch(html, new RegExp(`<button[^>]+data-command="${command}"[^>]*data-requires-group`), `${name} must not render the ${command} toolbar button`);
     }
-    assert.match(html, /<dialog id="insertion-chooser"/, `${name} must retain the contextual insertion chooser`);
+    assert.match(html, /<dialog\s+id="insertion-chooser"/, `${name} must retain the contextual insertion chooser`);
     for (const group of ['document', 'text', 'step', 'appendix', 'table']) {
       assert.match(html, new RegExp(`class="toolbar-group ${group}-group"`), `${name} must render the ${group} toolbar group`);
     }

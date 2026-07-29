@@ -1,37 +1,464 @@
 <!doctype html>
 <html lang="en-GB">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>UBTA Steps Plan Editor</title>
-  <link rel="stylesheet" href="./styles/app.css">
-  <link rel="stylesheet" href="./styles/document.css">
-</head>
-<body>
-  <div class="editor-command-bars">
-  <header id="steps-toolbar" class="toolbar" aria-label="Steps Plan editing toolbar">
-    <span class="brand">UBTA Steps Plan</span>
-    <div class="toolbar-group document-group" role="group" aria-label="Document"><span class="group-label">Document</span><div class="command-row"><button id="document-properties" type="button">Properties</button><button id="save-draft" type="button">Save now</button><button id="save-version" type="button">Save version</button><button id="show-versions" type="button">Versions</button></div><div class="command-row"><button data-command="undo">Undo</button><button data-command="redo">Redo</button><button id="share-snapshot" type="button">Copy link</button><button id="print-document" type="button" aria-describedby="print-document-help">Print / Save PDF</button><button id="export-document" type="button">Export</button></div><span id="print-document-help" class="visually-hidden">Opens the browser print dialog, where this document can be saved as a PDF.</span><span id="save-state" class="save-state" role="status">Saved locally</span></div>
-    <div class="toolbar-group text-group" role="group" aria-label="Text formatting"><span class="group-label">Text</span><div class="command-row"><select id="style" data-text-command aria-label="Block style"><option value="body">Body text</option><option value="heading1">Heading 1</option><option value="heading2">Heading 2</option><option value="heading3">Heading 3</option><option value="heading4">Heading 4</option><option value="bulletList">Bulleted list</option><option value="numberList">Numbered list</option></select></div><div class="command-row"><button data-command="highlight" data-text-command>Highlight</button><button data-command="link" data-text-command>Add link</button><button data-command="unlink" data-text-command>Remove link</button></div></div>
-    <div class="toolbar-group step-group" role="group" aria-label="Step management"><span class="group-label">Step</span><div class="command-row"><button data-command="addStepBefore" data-requires-step>Add step before</button><button data-command="addStepAfter" data-requires-step>Add step after</button></div><div class="command-row"><button data-command="moveStepUp" aria-label="Move step up">Move up</button><button data-command="moveStepDown" aria-label="Move step down">Move down</button><button data-command="deleteStep" class="danger">Delete step</button></div></div>
-    <div class="toolbar-group appendix-group" role="group" aria-label="Appendix management"><span class="group-label">Appendix</span><div class="command-row"><button data-command="addAppendix">Add appendix</button></div><div class="command-row"><button data-command="moveAppendixUp" aria-label="Move appendix up">Move up</button><button data-command="moveAppendixDown" aria-label="Move appendix down">Move down</button><button data-command="deleteAppendix" class="danger">Delete appendix</button></div></div>
-    <div class="toolbar-group table-group" role="group" aria-label="Table tools" data-table-group><span class="group-label">Table</span><div class="command-row"><button data-command="addRow" data-table-command>Add row</button><button data-command="removeRow" data-table-command>Remove row</button><button data-command="moveRowUp" data-table-command aria-label="Move selected row up">Move row up</button><button data-command="moveRowDown" data-table-command aria-label="Move selected row down">Move row down</button></div><div class="command-row"><button data-command="addColumn" data-table-command>Add column</button><button data-command="removeColumn" data-table-command>Remove column</button><button data-command="moveColumnLeft" data-table-command aria-label="Move selected column left">Move column left</button><button data-command="moveColumnRight" data-table-command aria-label="Move selected column right">Move column right</button><label data-table-command>Format <select id="column-format" aria-label="Selected column format"><option value="text">Text</option><option value="number">Number</option><option value="gbp">Pounds sterling</option></select></label><label data-table-command class="total-toggle"><input id="column-total-enabled" type="checkbox"> Calculate total</label></div></div>
-    <nav class="nav" aria-label="Page navigation"><span class="group-label">Page</span><div class="command-row"><button id="prev" type="button" aria-label="Previous page">Previous</button><span>Page <b id="current">1</b> of <b id="total">—</b></span><button id="next" type="button" aria-label="Next page">Next</button></div><label class="page-jump-label" for="page-jump">Jump directly to page</label><select id="page-jump" aria-label="Jump directly to page"></select></nav>
-  </header>
-  <div id="excel-toolbar" class="excel-toolbar" hidden><b>Excel Shares</b><button data-excel-action="addShareholder">Add shareholder</button><button data-excel-action="removeShareholder">Remove shareholder</button><button data-excel-action="addClass">Add share class</button><button data-excel-action="removeClass">Remove share class</button><button data-excel-action="addGroup">Add share group</button><button data-excel-action="removeGroup">Remove share group</button><button data-excel-action="addCompany">Add company</button><button class="danger" data-excel-action="deleteCompany">Delete company</button></div>
-  <div id="link-context" class="link-context" role="toolbar" aria-label="Selected link actions" hidden><span>Linked text</span><button id="open-selected-link" type="button">Open link</button><span>Links open with one click</span></div>
-  </div>
-  <dialog id="properties-dialog"><form id="properties-form"><h2>Document properties</h2><div class="properties-grid"><label>Client name<input name="clientName" type="text" maxlength="120" required></label><label>Project title<input name="projectTitle" type="text" maxlength="120" required></label><label>Document type<input name="documentType" type="text" maxlength="80" required></label><label>Date<input name="date" type="date" required></label><label>Version<input name="version" type="text" maxlength="30" required></label><label>Subtitle<input name="subtitle" type="text" maxlength="160"></label><label>Adviser<input name="adviser" type="text" maxlength="120" required></label><label>Status<select name="status" required><option>Draft</option><option>For review</option><option>Final</option></select></label></div><div class="dialog-actions"><button type="button" data-dialog-cancel>Cancel</button><button type="submit">Update document</button></div></form></dialog>
-  <dialog id="image-dialog"><form id="image-form" novalidate><h2>Add a published image</h2><p>Enter the public HTTPS address of a PNG, JPEG, GIF or WebP image. The editor links to the image and does not copy it into the document.</p><label>Image URL<input name="src" type="text" inputmode="url" autocomplete="url" placeholder="https://example.com/image.png" required></label><label>Alternative text<input name="alt" type="text" maxlength="500" required></label><label>Caption (optional)<input name="caption" type="text" maxlength="500"></label><label>Width % (optional)<input name="width" type="number" min="20" max="100" step="1" placeholder="100"></label><p id="image-form-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" data-dialog-cancel>Cancel</button><button type="submit">Add image</button></div></form></dialog>
-  <dialog id="insertion-chooser" class="insertion-chooser" aria-labelledby="insertion-chooser-title"><form method="dialog">
-    <section data-insertion-panel="main"><h2 id="insertion-chooser-title">Insert content</h2><p>Choose the type of content to add here.</p><div class="insertion-choices"><button type="button" data-insert-choice="paragraph" autofocus><b>Body text</b><span>Add a paragraph</span></button><button type="button" data-open-insertion-panel="heading"><b>Heading</b><span>Choose a heading level</span></button><button type="button" data-open-insertion-panel="list"><b>List</b><span>Bulleted or numbered</span></button><button type="button" data-open-insertion-panel="defaults"><b>Default update</b><span>Unlock reusable updates</span></button><button type="button" data-insert-choice="table"><b>Table</b><span>Add a two-column table</span></button><button type="button" data-insert-choice="image"><b>Image</b><span>Add an image from an HTTPS URL</span></button></div></section>
-    <section data-insertion-panel="heading" hidden aria-labelledby="heading-choice-title"><h2 id="heading-choice-title">Choose heading level</h2><div class="insertion-choices"><button type="button" data-insert-heading="1">Heading 1</button><button type="button" data-insert-heading="2">Heading 2</button><button type="button" data-insert-heading="3">Heading 3</button><button type="button" data-insert-heading="4">Heading 4</button></div><button type="button" data-insertion-back>Back</button></section>
-    <section data-insertion-panel="list" hidden aria-labelledby="list-choice-title"><h2 id="list-choice-title">Choose list type</h2><div class="insertion-choices"><button type="button" data-insert-choice="bulletList">Bulleted list</button><button type="button" data-insert-choice="numberList">Numbered list</button></div><button type="button" data-insertion-back>Back</button></section>
-    <section data-insertion-panel="defaults" hidden aria-labelledby="default-choice-title"><h2 id="default-choice-title">Default update</h2><div id="default-unlock"><p>Enter the vault password. Decryption happens locally.</p><label for="default-password">Vault password</label><input id="default-password" type="password" autocomplete="current-password" required><button id="unlock-defaults" type="button">Unlock templates</button></div><p id="default-error" class="form-error" role="alert" hidden></p><div id="default-template-choices" class="insertion-choices" aria-label="Available default updates"></div><button type="button" data-insertion-back>Back</button></section>
-    <div class="dialog-actions"><button type="button" data-dialog-cancel>Cancel</button></div></form></dialog>
-  <dialog id="versions-dialog"><form method="dialog"><h2>Local saved versions</h2><p>Up to 20 named versions are kept in this browser.</p><div id="versions-list" class="versions-list"></div><div><button type="button" data-dialog-cancel>Close</button></div></form></dialog><dialog id="link-picker"><form id="link-form"><h2>Choose a link destination</h2><label>Document destination<select id="link-destination"></select></label><span>or</span><label>External URL<input id="external-link" type="url" placeholder="https://example.com"></label><div><button type="button" data-dialog-cancel>Cancel</button><button type="submit">Apply link</button></div></form></dialog><div id="editor-status" class="visually-hidden" aria-live="polite"></div>
-  <div class="canvas"><div id="preview" class="pagedjs_pages" aria-live="polite"></div><main id="excel-editor" hidden></main></div>
-  <nav class="editor-switcher" aria-label="Editor navigation"><button data-editor="steps" aria-current="page">Steps Plan Editor</button><button data-editor="excel">Excel Shares Editor</button></nav>
-  <script src="./vendor/paged.js"></script><script type="module" src="./main.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>UBTA Steps Plan Editor</title>
+    <link rel="stylesheet" href="./styles/app.css" />
+    <link rel="stylesheet" href="./styles/document.css" />
+  </head>
+  <body>
+    <div class="editor-command-bars">
+      <header
+        id="steps-toolbar"
+        class="toolbar"
+        aria-label="Steps Plan editing toolbar"
+      >
+        <span class="brand">UBTA Steps Plan</span>
+        <div
+          class="toolbar-group document-group"
+          role="group"
+          aria-label="Document"
+        >
+          <span class="group-label">Document</span>
+          <div class="command-row">
+            <button id="document-properties" type="button">Properties</button>
+            <button id="save-draft" type="button">Save now</button>
+            <button id="save-version" type="button">Save version</button>
+            <button id="show-versions" type="button">Versions</button>
+          </div>
+          <div class="command-row">
+            <button data-command="undo">Undo</button>
+            <button data-command="redo">Redo</button>
+            <button id="share-snapshot" type="button">Copy link</button>
+            <button
+              id="print-document"
+              type="button"
+              aria-describedby="print-document-help"
+            >
+              Print / Save PDF
+            </button>
+            <button id="export-document" type="button">Export</button>
+          </div>
+          <span id="print-document-help" class="visually-hidden">
+            Opens the browser print dialog, where this document can be saved as
+            a PDF.
+          </span>
+          <span id="save-state" class="save-state" role="status">
+            Saved locally
+          </span>
+        </div>
+        <div
+          class="toolbar-group text-group"
+          role="group"
+          aria-label="Text formatting"
+        >
+          <span class="group-label">Text</span>
+          <div class="command-row">
+            <select id="style" data-text-command aria-label="Block style">
+              <option value="body">Body text</option>
+              <option value="heading1">Heading 1</option>
+              <option value="heading2">Heading 2</option>
+              <option value="heading3">Heading 3</option>
+              <option value="heading4">Heading 4</option>
+              <option value="bulletList">Bulleted list</option>
+              <option value="numberList">Numbered list</option>
+            </select>
+          </div>
+          <div class="command-row">
+            <button data-command="highlight" data-text-command>
+              Highlight
+            </button>
+            <button data-command="link" data-text-command>Add link</button>
+            <button data-command="unlink" data-text-command>Remove link</button>
+          </div>
+        </div>
+        <div
+          class="toolbar-group step-group"
+          role="group"
+          aria-label="Step management"
+        >
+          <span class="group-label">Step</span>
+          <div class="command-row">
+            <button data-command="addStepBefore" data-requires-step>
+              Add step before
+            </button>
+            <button data-command="addStepAfter" data-requires-step>
+              Add step after
+            </button>
+          </div>
+          <div class="command-row">
+            <button data-command="moveStepUp" aria-label="Move step up">
+              Move up
+            </button>
+            <button data-command="moveStepDown" aria-label="Move step down">
+              Move down
+            </button>
+            <button data-command="deleteStep" class="danger">
+              Delete step
+            </button>
+          </div>
+        </div>
+        <div
+          class="toolbar-group appendix-group"
+          role="group"
+          aria-label="Appendix management"
+        >
+          <span class="group-label">Appendix</span>
+          <div class="command-row">
+            <button data-command="addAppendix">Add appendix</button>
+          </div>
+          <div class="command-row">
+            <button data-command="moveAppendixUp" aria-label="Move appendix up">
+              Move up
+            </button>
+            <button
+              data-command="moveAppendixDown"
+              aria-label="Move appendix down"
+            >
+              Move down
+            </button>
+            <button data-command="deleteAppendix" class="danger">
+              Delete appendix
+            </button>
+          </div>
+        </div>
+        <div
+          class="toolbar-group table-group"
+          role="group"
+          aria-label="Table tools"
+          data-table-group
+        >
+          <span class="group-label">Table</span>
+          <div class="command-row">
+            <button data-command="addRow" data-table-command>Add row</button>
+            <button data-command="removeRow" data-table-command>
+              Remove row
+            </button>
+            <button
+              data-command="moveRowUp"
+              data-table-command
+              aria-label="Move selected row up"
+            >
+              Move row up
+            </button>
+            <button
+              data-command="moveRowDown"
+              data-table-command
+              aria-label="Move selected row down"
+            >
+              Move row down
+            </button>
+          </div>
+          <div class="command-row">
+            <button data-command="addColumn" data-table-command>
+              Add column
+            </button>
+            <button data-command="removeColumn" data-table-command>
+              Remove column
+            </button>
+            <button
+              data-command="moveColumnLeft"
+              data-table-command
+              aria-label="Move selected column left"
+            >
+              Move column left
+            </button>
+            <button
+              data-command="moveColumnRight"
+              data-table-command
+              aria-label="Move selected column right"
+            >
+              Move column right
+            </button>
+            <label data-table-command>
+              Format
+              <select id="column-format" aria-label="Selected column format">
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="gbp">Pounds sterling</option>
+              </select>
+            </label>
+            <label data-table-command class="total-toggle">
+              <input id="column-total-enabled" type="checkbox" />
+              Calculate total
+            </label>
+          </div>
+        </div>
+        <nav class="nav" aria-label="Page navigation">
+          <span class="group-label">Page</span>
+          <div class="command-row">
+            <button id="prev" type="button" aria-label="Previous page">
+              Previous
+            </button>
+            <span>
+              Page
+              <b id="current">1</b>
+              of
+              <b id="total">—</b>
+            </span>
+            <button id="next" type="button" aria-label="Next page">Next</button>
+          </div>
+          <label class="page-jump-label" for="page-jump">
+            Jump directly to page
+          </label>
+          <select id="page-jump" aria-label="Jump directly to page"></select>
+        </nav>
+      </header>
+      <div id="excel-toolbar" class="excel-toolbar" hidden>
+        <b>Excel Shares</b>
+        <button data-excel-action="addShareholder">Add shareholder</button>
+        <button data-excel-action="removeShareholder">
+          Remove shareholder
+        </button>
+        <button data-excel-action="addClass">Add share class</button>
+        <button data-excel-action="removeClass">Remove share class</button>
+        <button data-excel-action="addGroup">Add share group</button>
+        <button data-excel-action="removeGroup">Remove share group</button>
+        <button data-excel-action="addCompany">Add company</button>
+        <button class="danger" data-excel-action="deleteCompany">
+          Delete company
+        </button>
+      </div>
+      <div
+        id="link-context"
+        class="link-context"
+        role="toolbar"
+        aria-label="Selected link actions"
+        hidden
+      >
+        <span>Linked text</span>
+        <button id="open-selected-link" type="button">Open link</button>
+        <span>Links open with one click</span>
+      </div>
+    </div>
+    <dialog id="properties-dialog">
+      <form id="properties-form">
+        <h2>Document properties</h2>
+        <div class="properties-grid">
+          <label>
+            Client name
+            <input name="clientName" type="text" maxlength="120" required />
+          </label>
+          <label>
+            Project title
+            <input name="projectTitle" type="text" maxlength="120" required />
+          </label>
+          <label>
+            Document type
+            <input name="documentType" type="text" maxlength="80" required />
+          </label>
+          <label>
+            Date
+            <input name="date" type="date" required />
+          </label>
+          <label>
+            Version
+            <input name="version" type="text" maxlength="30" required />
+          </label>
+          <label>
+            Subtitle
+            <input name="subtitle" type="text" maxlength="160" />
+          </label>
+          <label>
+            Adviser
+            <input name="adviser" type="text" maxlength="120" required />
+          </label>
+          <label>
+            Status
+            <select name="status" required>
+              <option>Draft</option>
+              <option>For review</option>
+              <option>Final</option>
+            </select>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" data-dialog-cancel>Cancel</button>
+          <button type="submit">Update document</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="image-dialog">
+      <form id="image-form" novalidate>
+        <h2>Add a published image</h2>
+        <p>
+          Enter the public HTTPS address of a PNG, JPEG, GIF or WebP image. The
+          editor links to the image and does not copy it into the document.
+        </p>
+        <label>
+          Image URL
+          <input
+            name="src"
+            type="text"
+            inputmode="url"
+            autocomplete="url"
+            placeholder="https://example.com/image.png"
+            required
+          />
+        </label>
+        <label>
+          Alternative text
+          <input name="alt" type="text" maxlength="500" required />
+        </label>
+        <label>
+          Caption (optional)
+          <input name="caption" type="text" maxlength="500" />
+        </label>
+        <label>
+          Width % (optional)
+          <input
+            name="width"
+            type="number"
+            min="20"
+            max="100"
+            step="1"
+            placeholder="100"
+          />
+        </label>
+        <p id="image-form-error" class="form-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button type="button" data-dialog-cancel>Cancel</button>
+          <button type="submit">Add image</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog
+      id="insertion-chooser"
+      class="insertion-chooser"
+      aria-labelledby="insertion-chooser-title"
+    >
+      <form method="dialog">
+        <section data-insertion-panel="main">
+          <h2 id="insertion-chooser-title">Insert content</h2>
+          <p>Choose the type of content to add here.</p>
+          <div class="insertion-choices">
+            <button type="button" data-insert-choice="paragraph" autofocus>
+              <b>Body text</b>
+              <span>Add a paragraph</span>
+            </button>
+            <button type="button" data-open-insertion-panel="heading">
+              <b>Heading</b>
+              <span>Choose a heading level</span>
+            </button>
+            <button type="button" data-open-insertion-panel="list">
+              <b>List</b>
+              <span>Bulleted or numbered</span>
+            </button>
+            <button type="button" data-open-insertion-panel="defaults">
+              <b>Default update</b>
+              <span>Unlock reusable updates</span>
+            </button>
+            <button type="button" data-insert-choice="table">
+              <b>Table</b>
+              <span>Add a two-column table</span>
+            </button>
+            <button type="button" data-insert-choice="image">
+              <b>Image</b>
+              <span>Add an image from an HTTPS URL</span>
+            </button>
+          </div>
+        </section>
+        <section
+          data-insertion-panel="heading"
+          hidden
+          aria-labelledby="heading-choice-title"
+        >
+          <h2 id="heading-choice-title">Choose heading level</h2>
+          <div class="insertion-choices">
+            <button type="button" data-insert-heading="1">Heading 1</button>
+            <button type="button" data-insert-heading="2">Heading 2</button>
+            <button type="button" data-insert-heading="3">Heading 3</button>
+            <button type="button" data-insert-heading="4">Heading 4</button>
+          </div>
+          <button type="button" data-insertion-back>Back</button>
+        </section>
+        <section
+          data-insertion-panel="list"
+          hidden
+          aria-labelledby="list-choice-title"
+        >
+          <h2 id="list-choice-title">Choose list type</h2>
+          <div class="insertion-choices">
+            <button type="button" data-insert-choice="bulletList">
+              Bulleted list
+            </button>
+            <button type="button" data-insert-choice="numberList">
+              Numbered list
+            </button>
+          </div>
+          <button type="button" data-insertion-back>Back</button>
+        </section>
+        <section
+          data-insertion-panel="defaults"
+          hidden
+          aria-labelledby="default-choice-title"
+        >
+          <h2 id="default-choice-title">Default update</h2>
+          <div id="default-unlock">
+            <p>Enter the vault password. Decryption happens locally.</p>
+            <label for="default-password">Vault password</label>
+            <input
+              id="default-password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+            <button id="unlock-defaults" type="button">Unlock templates</button>
+          </div>
+          <p id="default-error" class="form-error" role="alert" hidden></p>
+          <div
+            id="default-template-choices"
+            class="insertion-choices"
+            aria-label="Available default updates"
+          ></div>
+          <button type="button" data-insertion-back>Back</button>
+        </section>
+        <div class="dialog-actions">
+          <button type="button" data-dialog-cancel>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="versions-dialog">
+      <form method="dialog">
+        <h2>Local saved versions</h2>
+        <p>Up to 20 named versions are kept in this browser.</p>
+        <div id="versions-list" class="versions-list"></div>
+        <div><button type="button" data-dialog-cancel>Close</button></div>
+      </form>
+    </dialog>
+    <dialog id="link-picker">
+      <form id="link-form">
+        <h2>Choose a link destination</h2>
+        <label>
+          Document destination
+          <select id="link-destination"></select>
+        </label>
+        <span>or</span>
+        <label>
+          External URL
+          <input
+            id="external-link"
+            type="url"
+            placeholder="https://example.com"
+          />
+        </label>
+        <div>
+          <button type="button" data-dialog-cancel>Cancel</button>
+          <button type="submit">Apply link</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="editor-status" class="visually-hidden" aria-live="polite"></div>
+    <div class="canvas">
+      <div id="preview" class="pagedjs_pages" aria-live="polite"></div>
+      <main id="excel-editor" hidden></main>
+    </div>
+    <nav class="editor-switcher" aria-label="Editor navigation">
+      <button data-editor="steps" aria-current="page">Steps Plan Editor</button>
+      <button data-editor="excel">Excel Shares Editor</button>
+    </nav>
+    <script src="./vendor/paged.js"></script>
+    <script type="module" src="./main.js"></script>
+  </body>
 </html>
