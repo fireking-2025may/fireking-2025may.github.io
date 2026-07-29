@@ -2,12 +2,12 @@
   --lav: #8d8eb1;
   --coral: #f79097;
   --grey: #808080;
-  --paper: #fffefa;
-  --review: #ffe985;
-  --ink: #343444;
+  --paper: #fff;
+  --review: #fff500;
+  --ink: #111;
   --toolbar-blue: #17365d;
   --toolbar-yellow: #ffd966;
-  --font: "Century Gothic", "Futura", "Aptos", "Segoe UI", sans-serif;
+  --font: Arial, "Helvetica Neue", sans-serif;
 }
 * {
   box-sizing: border-box;

@@ -2,12 +2,12 @@
   --lav: #8d8eb1;
   --coral: #f79097;
   --grey: #808080;
-  --paper: #fffefa;
-  --review: #ffe985;
-  --ink: #343444;
+  --paper: #fff;
+  --review: #fff500;
+  --ink: #111;
   --toolbar-blue: #17365d;
   --toolbar-yellow: #ffd966;
-  --font: "Century Gothic", "Futura", "Aptos", "Segoe UI", sans-serif;
+  --font: Arial, "Helvetica Neue", sans-serif;
 }
 * {
   box-sizing: border-box;
@@ -705,7 +705,7 @@ dialog label {
   width: 297mm;
   height: 210mm;
   position: relative;
-  padding: 42mm 24mm 18mm;
+  padding: 36mm 20mm 18mm;
   background: var(--paper);
   overflow: hidden;
 }
@@ -714,18 +714,40 @@ dialog label {
   top: 9mm;
   left: 20mm;
   right: 20mm;
-  height: 25mm;
+  height: 18mm;
   display: flex;
   align-items: center;
-  border-bottom: 0.4mm solid #8d8eb155;
-  padding-bottom: 3mm;
 }
 .header-brand {
-  font-size: 22pt;
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5mm;
+  font-size: 25pt;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: -0.04em;
   color: var(--lav);
 }
+.brand-mark {
+  position: relative;
+  width: 12mm;
+  height: 12mm;
+}
+.brand-mark i {
+  position: absolute;
+  left: 5mm;
+  top: 0;
+  width: 2mm;
+  height: 4mm;
+  background: var(--coral);
+  transform-origin: 1mm 6mm;
+}
+.brand-mark i:nth-child(2) { transform: rotate(45deg); }
+.brand-mark i:nth-child(3) { transform: rotate(90deg); }
+.brand-mark i:nth-child(4) { transform: rotate(135deg); }
+.brand-mark i:nth-child(5) { transform: rotate(180deg); }
+.brand-mark i:nth-child(6) { transform: rotate(225deg); }
+.brand-mark i:nth-child(7) { transform: rotate(270deg); }
+.brand-mark i:nth-child(8) { transform: rotate(315deg); }
 .header-details {
   margin-left: auto;
   color: var(--grey);
@@ -742,28 +764,32 @@ dialog label {
   right: 20mm;
   text-align: center;
   color: var(--grey);
-  font-size: 9pt;
+  font-size: 8.5pt;
 }
 .cover {
-  padding-top: 48mm;
-}
-.cover-kicker {
-  color: var(--coral);
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  font-size: 11pt;
+  padding-top: 28mm;
 }
 .cover h1 {
-  font-size: 30pt;
-  line-height: 1.08;
-  color: var(--lav);
-  margin: 5mm 0 2mm;
-  max-width: 190mm;
-}
-.cover h2 {
-  font-size: 18pt;
+  display: grid;
+  gap: 3mm;
+  margin: 13mm 0 0;
+  max-width: 245mm;
+  color: #000;
+  font-size: 25pt;
   font-weight: 400;
-  margin: 0 0 12mm;
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.cover-subtitle {
+  margin-top: 12mm;
+}
+.cover-date {
+  position: absolute;
+  left: 20mm;
+  bottom: 44mm;
+  margin: 0;
+  font-size: 12pt;
 }
 .meta-grid {
   display: grid;
@@ -780,19 +806,18 @@ dialog label {
   margin: 0;
 }
 .doc-title {
-  font-size: 23pt;
-  color: var(--lav);
-  margin: 0 0 9mm;
+  font-size: 12pt;
+  color: #000;
+  margin: 0 0 1mm;
 }
 .section-title,
 .step-title {
-  font: 700 18pt var(--font);
-  color: var(--lav);
+  font: 700 11pt var(--font);
+  color: #000;
   border: 0;
-  border-bottom: 0.5mm solid var(--coral);
   background: transparent;
-  padding: 0 0 3mm;
-  margin: 0 0 7mm;
+  padding: 0;
+  margin: 0;
   width: 100%;
 }
 .step-title:focus {
@@ -800,15 +825,14 @@ dialog label {
   background: #fff;
 }
 .step-label {
-  color: var(--coral);
+  color: #000;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 2mm;
+  white-space: nowrap;
 }
 .document-body {
-  font-size: 10.5pt;
-  line-height: 1.48;
+  margin-top: 8mm;
+  font-size: 9.5pt;
+  line-height: 1.38;
 }
 .editable-block {
   margin: 0 0 4mm;
@@ -889,7 +913,7 @@ a {
 .toc li {
   display: flex;
   align-items: baseline;
-  margin: 5mm 0;
+  margin: 2.2mm 0;
 }
 .toc a {
   color: var(--ink);
@@ -904,7 +928,7 @@ a {
   font-variant-numeric: tabular-nums;
 }
 .toc-step {
-  padding-left: 9mm;
+  padding-left: 4mm;
 }
 .table-block table {
   width: 100%;
@@ -919,12 +943,12 @@ a {
 .table-block th,
 .table-block td {
   position: relative;
-  border: 1px solid #bcbcca;
-  padding: 2mm;
+  border: 1px solid #111;
+  padding: 1mm 2mm;
   vertical-align: top;
 }
 .table-block th {
-  background: #ececf3;
+  background: #fff;
   text-align: left;
 }
 .table-block :is(.format-number, .format-gbp) {
@@ -1004,17 +1028,19 @@ h4,
   padding-left: 3mm;
 }
 .step-heading {
-  display: block;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: baseline;
+  gap: 10mm;
 }
 .step-title-print {
   display: none;
-  font: 700 18pt var(--font);
-  color: var(--lav);
+  font: 700 11pt var(--font);
+  color: #000;
   border: 0;
-  border-bottom: 0.5mm solid var(--coral);
   background: transparent;
-  padding: 0 0 3mm;
-  margin: 0 0 7mm;
+  padding: 0;
+  margin: 0;
   width: 100%;
   min-height: 0;
   white-space: normal;
@@ -4400,10 +4426,13 @@ const selectedEditableGroup = () =>
   ).find((x) => x.id === editorSelection.activeGroupId);
 const appendixLabel = (index) => `Appendix ${String.fromCharCode(65 + index)}`;
 
+function brandHTML() {
+  return `<span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="brand-wordmark">UBTA</span>`;
+}
 function header() {
   const x = document.createElement('header');
   x.className = 'page-header';
-  x.innerHTML = `<span class="header-brand">UBTA</span><span class="header-details">${esc(state.meta.clientName)} · ${esc(state.meta.projectTitle)} · ${esc(state.meta.version)}</span>`;
+  x.innerHTML = `<span class="header-brand">${brandHTML()}</span>`;
   return x;
 }
 function sheet(kind) {
@@ -4476,7 +4505,7 @@ function groupSheet(group, title, kind) {
 }
 function cover() {
   const x = sheet('cover');
-  x.innerHTML += `<div class="cover-kicker">${esc(state.meta.documentType)} · ${esc(state.meta.status)}</div><h1>${esc(state.meta.clientName)}</h1><h2>${esc(state.meta.projectTitle)}</h2><p>${esc(state.meta.subtitle)}</p><p>${esc(state.meta.date)} · ${esc(state.meta.adviser)} · ${esc(state.meta.version)}</p>`;
+  x.innerHTML += `<h1><span>${esc(state.meta.clientName)}</span><span>${esc(state.meta.projectTitle)}</span></h1><p class="cover-subtitle">${esc(state.meta.subtitle)}</p><p class="cover-date">${esc(state.meta.date)}</p>`;
   return x;
 }
 function contentsEntries() {
