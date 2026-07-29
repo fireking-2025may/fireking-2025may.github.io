@@ -9,6 +9,7 @@ export class PrintLifecycle {
     restore,
     onAfterPrint,
     onError = () => {},
+    stabilize = () => true,
     setFallback = (callback) => setTimeout(callback, 1000),
     clearFallback = clearTimeout,
   }) {
@@ -22,6 +23,7 @@ export class PrintLifecycle {
       restore,
       onAfterPrint,
       onError,
+      stabilize,
       setFallback,
       clearFallback,
     });
@@ -31,7 +33,8 @@ export class PrintLifecycle {
   async run() {
     if (this.busy) return false;
     this.busy = true;
-    const context = this.prepare();
+    let context;
+    let prepared = false;
     let fallback;
     let removeAfterPrint = () => {};
     const cleanup = () => {
@@ -39,9 +42,11 @@ export class PrintLifecycle {
       this.busy = false;
       if (fallback !== undefined) this.clearFallback(fallback);
       removeAfterPrint();
-      this.restore(context);
+      if (prepared) this.restore(context);
     };
     try {
+      context = this.prepare();
+      prepared = true;
       this.flush();
       this.cancelPagination();
       if (!(await this.render()))
@@ -52,6 +57,8 @@ export class PrintLifecycle {
         throw new Error(
           'The document contents could not be reconciled for printing.',
         );
+      if (!(await this.stabilize()))
+        throw new Error('The paginated print layout did not become stable.');
       this.clearPresentation();
       removeAfterPrint = this.onAfterPrint(cleanup);
       this.print();

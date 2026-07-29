@@ -57,6 +57,7 @@ import {
 import {
   validatedLink,
   containedSelectionOffsets,
+  captureSelectionBeforeCommand,
   confirmStepDeletion,
   splitListRuns,
   removeEmptyListItem,
@@ -78,12 +79,14 @@ import {
 } from './editor/insertion-context.js';
 import {
   EncryptedTemplateLoader,
+  loadDefaultTemplates,
   templateBlocks,
 } from './editor/default-templates.js';
 import { defaultTemplateEnvelope } from './editor/default-template-data.js';
 import {
   followEditorLink,
   handleEditableLinkClick,
+  createEditableLinkClickHandler,
 } from './editor/link-actions.js';
 import { bindCallouts } from './editor/callouts.js';
 import { NavigationHistory } from './editor/navigation-history.js';
@@ -1482,12 +1485,16 @@ function updateControls() {
 document.querySelectorAll('[data-command]').forEach((b) => {
   b.addEventListener('pointerdown', (e) => {
     if (b.dataset.textCommand !== undefined) {
-      e.preventDefault();
-      captureSelection();
+      captureSelectionBeforeCommand(e, captureSelection, {
+        keepEditorFocus: true,
+      });
     }
   });
   b.addEventListener('click', () => command(b.dataset.command));
 });
+$('#style').addEventListener('pointerdown', (event) =>
+  captureSelectionBeforeCommand(event, captureSelection),
+);
 $('#style').onchange = (e) => command(e.target.value);
 $('#column-format').onchange = (e) => {
   const { block } = findBlock(editorSelection.activeBlockId),
@@ -1623,7 +1630,11 @@ $('#unlock-defaults').onclick = async () => {
   error.hidden = true;
   try {
     renderTemplates(
-      await templateLoader.unlock(defaultTemplateEnvelope, password),
+      await loadDefaultTemplates({
+        loader: templateLoader,
+        envelope: defaultTemplateEnvelope,
+        password,
+      }),
     );
   } catch (failure) {
     error.textContent = failure.message;
@@ -1864,7 +1875,6 @@ $('#share-snapshot').onclick = async () => {
 $('#open-selected-link').onpointerdown = (event) => event.preventDefault();
 $('#open-selected-link').onclick = () =>
   openEditorLink($('#link-context').dataset.href);
-$('#preview').addEventListener('click', editableLinkClick);
 document.addEventListener('selectionchange', updateLinkContext);
 const printButton = $('#print-document');
 const printing = new PrintLifecycle({
@@ -1881,6 +1891,12 @@ const printing = new PrintLifecycle({
   clearPresentation: () => {
     getSelection()?.removeAllRanges();
     document.activeElement?.blur?.();
+  },
+  stabilize: async () => {
+    await document.fonts?.ready;
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    return $('#preview').querySelectorAll('.pagedjs_page').length > 0;
   },
   print: () => window.print(),
   onAfterPrint: (cleanup) => {
@@ -2033,9 +2049,14 @@ const openEditorLink = (href) =>
     },
     report: announce,
   });
-function editableLinkClick(event) {
-  handleEditableLinkClick(event, openEditorLink);
-}
+const editorInitializationDependencies = {
+  handleClick: handleEditableLinkClick,
+  openLink: openEditorLink,
+};
+const editableLinkClick = createEditableLinkClickHandler(
+  editorInitializationDependencies,
+);
+$('#preview').addEventListener('click', editableLinkClick, true);
 function selectedEditableLink() {
   const selection = getSelection(),
     node = selection?.anchorNode;

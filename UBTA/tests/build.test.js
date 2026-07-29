@@ -41,14 +41,24 @@ test('production bundle includes the editable-link click helper before its calle
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
   const definition = html.indexOf('function handleEditableLinkClick(');
-  const caller = html.search(
-    /handleEditableLinkClick\(event,\s*openEditorLink\)/,
+  const dependency = html.indexOf('handleClick: handleEditableLinkClick');
+  const factoryCall = html.indexOf(
+    'const editableLinkClick = createEditableLinkClickHandler(',
   );
+  const binding = html.indexOf("addEventListener('click', editableLinkClick, true)");
 
   assert.notEqual(definition, -1, 'handleEditableLinkClick must be bundled');
   assert.ok(
-    caller > definition,
-    'the helper must be defined before editableLinkClick uses it',
+    dependency > definition,
+    'the helper must be defined before editor initialization references it',
+  );
+  assert.ok(
+    factoryCall > definition,
+    'the helper must be defined before the click handler is created',
+  );
+  assert.ok(
+    binding > dependency && binding > factoryCall,
+    'the standalone page must initialize the handler before binding it',
   );
 });
 
@@ -127,15 +137,35 @@ test('standalone template unlock has embedded ciphertext and performs no runtime
   execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
   const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
   assert.match(html, /const defaultTemplateEnvelope\s*=/);
+  const manifest = JSON.parse(
+    fs.readFileSync(path.resolve(root, '../encrypted-files/manifest.json'), 'utf8'),
+  );
   const canonical = JSON.parse(
     fs.readFileSync(
-      path.resolve(root, '../encrypted-files/vault/8f3c1a7e4d92b605.json'),
+      path.resolve(root, '../encrypted-files', manifest.editorDefaults),
       'utf8',
     ),
   );
   assert.ok(html.includes(canonical.ciphertext));
   assert.ok(html.includes(canonical.salt));
   assert.ok(html.includes(canonical.iv));
+  for (const implementation of [
+    'function decodeBase64(',
+    'function validateEnvelope(',
+    'async function decryptEnvelope(',
+    'async function loadDefaultTemplates(',
+  ])
+    assert.notEqual(html.indexOf(implementation), -1, `${implementation} must be bundled`);
+  assert.ok(
+    html.indexOf('async function decryptEnvelope(') <
+      html.indexOf('new EncryptedTemplateLoader()'),
+    'offline crypto must be defined before the template loader is initialized',
+  );
+  assert.ok(
+    html.indexOf('const defaultTemplateEnvelope =') <
+      html.indexOf('loadDefaultTemplates({'),
+    'the offline envelope must be embedded before the unlock handler uses it',
+  );
   assert.doesNotMatch(html, /fetch\(['"]\.\.\/\.\.\/encrypted-files/);
   assert.doesNotMatch(html, /Stamp duty|Reusable paragraph content/);
 });
@@ -153,7 +183,13 @@ test('standalone build contains the complete print feature', () => {
   assert.match(html, /id="print-document"/);
   assert.match(html, /new PrintLifecycle\(/);
   assert.match(html, /window\.print\(\)/);
+  assert.match(html, /await this\.stabilize\(\)/);
+  assert.match(html, /document\.fonts\?\.ready/);
   assert.match(html, /Print preparation failed:/);
+  assert.ok(
+    html.indexOf('class PrintLifecycle') < html.indexOf('new PrintLifecycle('),
+    'the standalone lifecycle must be defined before print wiring',
+  );
   assert.match(html, /@media print/);
   assert.match(
     compactCss(html),
@@ -161,6 +197,29 @@ test('standalone build contains the complete print feature', () => {
   );
   assert.match(compactCss(html), /\.pagedjs_page:last-child\{break-after:auto/);
   assert.match(compactCss(html), /\.step-title-print\{display:none/);
+});
+
+test('standalone print and heading layout retains editing and A4 safeguards', () => {
+  execFileSync(process.execPath, ['scripts/build.mjs'], { cwd: root });
+  const html = fs.readFileSync(path.join(root, 'dist/index.html'), 'utf8');
+  const css = compactCss(html);
+  assert.match(css, /@page\{size:A4 landscape;margin:0}/);
+  assert.match(
+    css,
+    /#preview \.pagedjs_page\{[^}]*width:297mm!important;[^}]*height:210mm!important/,
+  );
+  assert.match(
+    css,
+    /#preview \.pagedjs_page\{[^}]*overflow:hidden!important;[^}]*break-after:page/,
+  );
+  assert.match(css, /\.block-controls,\.column-resizer\{display:none!important}/);
+  assert.match(
+    css,
+    /\.editable-block\[data-type="heading"\]\{break-after:avoid;break-after:avoid-page}/,
+  );
+  assert.match(html, /captureSelectionBeforeCommand\(event, captureSelection\)/);
+  assert.match(html, /\(!event\.ctrlKey && !event\.metaKey\)/);
+  assert.match(html, /Use Ctrl\/⌘\+click to open a link while editing/);
 });
 
 test('heading titles use exactly one normal-flow representation in screen and print', () => {

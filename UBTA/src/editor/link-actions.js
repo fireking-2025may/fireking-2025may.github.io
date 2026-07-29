@@ -27,8 +27,16 @@ export function followEditorLink(
 
 export function handleEditableLinkClick(event, openLink) {
   const link = event.target?.closest?.('.editable-runs a');
-  if (!link || event.button !== 0) return false;
+  if (!link || event.button !== 0 || (!event.ctrlKey && !event.metaKey))
+    return false;
   event.preventDefault();
+  event.stopPropagation();
   openLink(link.getAttribute('href'));
   return true;
+}
+
+export function createEditableLinkClickHandler({ handleClick, openLink }) {
+  return function editableLinkClick(event) {
+    return handleClick(event, openLink);
+  };
 }

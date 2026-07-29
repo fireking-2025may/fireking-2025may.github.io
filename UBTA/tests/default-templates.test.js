@@ -10,6 +10,7 @@ import {
 import {
   EncryptedTemplateLoader,
   generateOpaqueId,
+  loadDefaultTemplates,
   migrateTemplatePayload,
   templateBlocks,
   validateTemplatePayload,
@@ -187,6 +188,64 @@ test('loader accepts legacy during transition and caches only success', async ()
   await loader.unlock({}, 'ignored');
   assert.equal(calls, 2);
 });
+test('loader decrypts an encrypted database and normalizes document blocks', async () => {
+  const payload = valid();
+  const envelope = await encryptEnvelope(payload, 'correct horse', {
+    subtle: webcrypto.subtle,
+    randomBytes: (length) => webcrypto.getRandomValues(new Uint8Array(length)),
+  });
+  const loader = new EncryptedTemplateLoader({
+    decrypt: (value, password) =>
+      decryptEnvelope(value, password, webcrypto.subtle),
+  });
+
+  const templates = await loadDefaultTemplates({
+    loader,
+    envelope,
+    password: 'correct horse',
+  });
+
+  assert.equal(templates[0].header, 'Stamp duty');
+  assert.deepEqual(templates[0].blocks[0].runs[0], {
+    text: 'Body',
+    highlight: true,
+    link: { href: 'https://example.com' },
+  });
+  assert.ok(Object.isFrozen(templates[0].blocks[0]));
+});
+test('offline loading distinguishes missing data, invalid credentials, and malformed plaintext', async () => {
+  const encrypted = await encryptEnvelope(valid(), 'right', {
+    subtle: webcrypto.subtle,
+    randomBytes: (length) => webcrypto.getRandomValues(new Uint8Array(length)),
+  });
+  const loader = () =>
+    new EncryptedTemplateLoader({
+      decrypt: (value, password) =>
+        decryptEnvelope(value, password, webcrypto.subtle),
+    });
+
+  await assert.rejects(
+    loadDefaultTemplates({ loader: loader(), envelope: null, password: 'right' }),
+    /unavailable offline/,
+  );
+  await assert.rejects(
+    loadDefaultTemplates({ loader: loader(), envelope: encrypted, password: 'wrong' }),
+    /Incorrect password or damaged file/,
+  );
+  const damaged = { ...encrypted, ciphertext: `${encrypted.ciphertext.slice(0, -4)}AAAA` };
+  await assert.rejects(
+    loadDefaultTemplates({ loader: loader(), envelope: damaged, password: 'right' }),
+    /Incorrect password or damaged file/,
+  );
+  const malformedLoader = new EncryptedTemplateLoader({
+    decrypt: async () => ({ type: 'editor-defaults', schemaVersion: 2, templates: [] }),
+  });
+  await assert.rejects(
+    loadDefaultTemplates({ loader: malformedLoader, envelope: encrypted, password: 'right' }),
+    /decrypted template database is malformed/,
+  );
+  assert.equal(malformedLoader.cached, false);
+});
 test('insertion deep-clones all blocks with fresh nested IDs and is one history action', () => {
   const template = valid().templates[0];
   template.blocks.push({
@@ -231,4 +290,8 @@ test('encryption round-trips and fresh randomness changes salt, IV and ciphertex
     /Incorrect password/,
   );
   validateEnvelope(a);
+  assert.throws(
+    () => validateEnvelope({ ...a, iterations: 100000 }),
+    /Incorrect password or damaged file/,
+  );
 });
