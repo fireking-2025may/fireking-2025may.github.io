@@ -30,3 +30,11 @@ test('postcode requires the stated uppercase format and space',()=>{
   assert.equal(C.normalizePostcode('SW1A1AA'),null);
   assert.match(C.personErrors({...people[0],postcode:'SW1A1AA'}).join(),/required format/);
 });
+
+test('session import migrates legacy version-1 person syntax',()=>{
+  const legacyPerson={...people[0],fullName:"Anne-Marie O'Neill",postcode:'sw1a1aa'};
+  const text=JSON.stringify(C.exportSession({company,people:[legacyPerson,people[1]],transfers:[transfer]}));
+  const imported=C.importSessionText(text);
+  assert.equal(imported.people[0].fullName,"Anne-Marie O'Neill");
+  assert.equal(imported.people[0].postcode,'SW1A 1AA');
+});
