@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {isoToDisplay} from '../../src/app/date.js';import {escapeHtml} from '../../src/security/escape.js';import {addItem,removeItem,moveItem} from '../../src/data/operations.js';import {createProhibitedApiDoubles,PROHIBITED_APIS} from '../../src/security/guards.js';
+test('ISO dates format without reinterpretation',()=>assert.equal(isoToDisplay('2026-07-03'),'03/07/2026'));
+test('HTML escaping covers active characters',()=>assert.equal(escapeHtml(`<img onerror='x'>&"`),'&lt;img onerror=&#39;x&#39;&gt;&amp;&quot;'));
+test('repeatable operations add, preserve minimum, remove and reorder',()=>{const a=[{id:'a'},{id:'b'}];assert.equal(addItem(a,()=>({id:'c'})).length,3);assert.deepEqual(moveItem(a,'b',-1).map(x=>x.id),['b','a']);assert.deepEqual(removeItem(a,'a').map(x=>x.id),['b']);assert.equal(removeItem([{id:'a'}],'a').length,1);});
+test('all prohibited API test doubles throw on access',()=>{const d=createProhibitedApiDoubles();for(const api of PROHIBITED_APIS)assert.throws(()=>d[api],new RegExp(api));});
