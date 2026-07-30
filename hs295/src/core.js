@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.HS295Core=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 const SCHEMA='uk-tax-practice.hs295-session',VERSION=1,TEMPLATE='2026';
-const LIMITS={name:52,address:58,country:36,identifier:10,shareClass:32,reorganisation:420,retained:350,company:70,moneyDigits:8,transferValueDigits:7,gainDigits:8};
+const LIMITS={name:52,address:58,country:36,identifier:10,shareClass:32,reorganisation:420,retained:350,company:70,moneyDigits:8,transferValueDigits:7,gainDigits:7};
 const own=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).every(k=>keys.includes(k));
 const trim=v=>typeof v==='string'?v.trim():'';
 function uuid(){return globalThis.crypto&&crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&3|8).toString(16)});}
