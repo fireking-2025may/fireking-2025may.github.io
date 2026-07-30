@@ -5,7 +5,7 @@ const transfer={id:'t',transferorPersonId:'a',transfereePersonId:'b',numberShare
 test('full and part gain calculations',()=>{assert.equal(C.gain(transfer),75000);assert.equal(C.gain({...transfer,partDisposal:true,apportionedAcquisitionCost:'10000'}),90000)});
 test('zero and negative gains block export',()=>{for(const v of ['25000','20000'])assert.match(C.transferErrors({...transfer,transferValue:v},people,company).join(),/positive gain/)});
 test('whole pounds and dates',()=>{assert.equal(C.whole('12.5'),false);assert.equal(C.whole('12'),true);assert.equal(C.validDate('2024-02-29'),true);assert.equal(C.validDate('2023-02-29'),false)});
-test('normalises identifiers and postcode',()=>{assert.equal(C.normalizeUTR('12345 67890'),'1234567890');assert.equal(C.normalizeNINO('ab 12 34 56 c'),'AB123456C');assert.equal(C.normalizePostcode('sw1a1aa'),'SW1A 1AA')});
+test('normalises identifiers and postcode',()=>{assert.equal(C.normalizeUTR('12345 67890'),'1234567890');assert.equal(C.normalizeNINO('ab 12 34 56 c'),'AB123456C');assert.equal(C.normalizePostcode('SW1A 1AA'),'SW1A 1AA')});
 test('asset description preserves meaningful precision and permits register-verified name only',()=>{assert.equal(C.assetDescription(transfer,company),'10,000 £1.25 Ordinary shares in Example Holdings Limited (company number 01234567)');assert.equal(C.assetDescription(transfer,{legalName:'Example Holdings Limited',companyNumber:''}),'10,000 £1.25 Ordinary shares in Example Holdings Limited')});
 test('filename sanitisation and duplicates',()=>{assert.equal(C.sanitizeFilename('A:B?. '),'A-B-');assert.deepEqual(C.pdfFilenames([transfer,{...transfer,id:'t2'}],people),['Alex Example to Blair Sample - 30-06-2026.pdf','Alex Example to Blair Sample - 30-06-2026 (2).pdf'])});
 test('ZIP taxpayer reference rule',()=>{assert.equal(C.taxpayerReference([transfer],people),'1234567890');assert.equal(C.taxpayerReference([transfer,{...transfer,transferorPersonId:'b'}],people),'Multiple Taxpayers')});
@@ -17,3 +17,24 @@ test('estimated transfer value is limited to seven digits and leading zeroes do 
 test('reorganisation details are always optional',()=>assert.doesNotMatch(C.transferErrors({...transfer,reorganisationStatus:'',reorganisationDetails:''},people,company).join(),/reorganisation status|reorganisation or bonus/i))
 
 test('session import normalises missing optional reorganisation text',()=>{const x=C.exportSession({company,people,transfers:[{...transfer,reorganisationStatus:'details',reorganisationDetails:null}]});const imported=C.importSessionText(JSON.stringify(x)).transfers[0];assert.equal(imported.reorganisationDetails,'');assert.equal(imported.reorganisationStatus,'none')})
+
+test('names contain letters and spaces only',()=>{
+  assert.equal(C.validName('Alex Example'),true);
+  assert.equal(C.validName('Alex7 Example'),false);
+  assert.match(C.personErrors({...people[0],fullName:'Alex7 Example'}).join(),/letters and spaces only/);
+});
+
+test('postcode requires the stated uppercase format and space',()=>{
+  assert.equal(C.normalizePostcode('SW1A 1AA'),'SW1A 1AA');
+  assert.equal(C.normalizePostcode('sw1a 1aa'),null);
+  assert.equal(C.normalizePostcode('SW1A1AA'),null);
+  assert.match(C.personErrors({...people[0],postcode:'SW1A1AA'}).join(),/required format/);
+});
+
+test('session import migrates legacy version-1 person syntax',()=>{
+  const legacyPerson={...people[0],fullName:"Anne-Marie O'Neill",postcode:'sw1a1aa'};
+  const text=JSON.stringify(C.exportSession({company,people:[legacyPerson,people[1]],transfers:[transfer]}));
+  const imported=C.importSessionText(text);
+  assert.equal(imported.people[0].fullName,"Anne-Marie O'Neill");
+  assert.equal(imported.people[0].postcode,'SW1A 1AA');
+});
