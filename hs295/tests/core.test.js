@@ -15,3 +15,5 @@ test('part disposal requires separately apportioned cost and retained fields',()
 
 test('estimated transfer value is limited to seven digits and leading zeroes do not consume PDF capacity',()=>{assert.match(C.transferErrors({...transfer,transferValue:'12345678'},people,company).join(),/7 digits/);assert.doesNotMatch(C.transferErrors({...transfer,wholeAcquisitionCost:'00025000',transferValue:'0100000'},people,company).join(),/digits/)})
 test('reorganisation details are always optional',()=>assert.doesNotMatch(C.transferErrors({...transfer,reorganisationStatus:'',reorganisationDetails:''},people,company).join(),/reorganisation status|reorganisation or bonus/i))
+
+test('session import normalises missing optional reorganisation text',()=>{const x=C.exportSession({company,people,transfers:[{...transfer,reorganisationStatus:'details',reorganisationDetails:null}]});const imported=C.importSessionText(JSON.stringify(x)).transfers[0];assert.equal(imported.reorganisationDetails,'');assert.equal(imported.reorganisationStatus,'none')})
