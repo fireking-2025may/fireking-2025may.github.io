@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {parseDecimal,multiplyValues,formatShares,formatMoney,capitalTotals} from '../../src/app/decimal.js';
+test('strict decimals reject invalid syntax and unsupported precision',()=>{for(const v of ['-1','+1','1e2','NaN','Infinity','1.001',' 1','9'.repeat(31)])assert.throws(()=>parseDecimal(v));for(const v of ['0','12','12.30','9'.repeat(30)])assert.doesNotThrow(()=>parseDecimal(v));});
+test('exact multiply, half-up rounding and formatting',()=>{assert.equal(multiplyValues('2.55','1.01').toString(),'2.58');assert.equal(formatShares('1234567.5'),'1,234,567.50');assert.equal(formatMoney('12'),'£12.00');});
+test('capital totals are exact',()=>assert.deepEqual(capitalTotals([{numberOfShares:'1000.25',nominalValuePerShare:'0.10'},{numberOfShares:'2',nominalValuePerShare:'0.25'}]),{shares:'1,002.25',nominal:'£100.53'}));
+
+test('capital total rounds the sum rather than each fractional-penny row',()=>assert.equal(capitalTotals([{numberOfShares:'0.01',nominalValuePerShare:'0.50'},{numberOfShares:'0.01',nominalValuePerShare:'0.50'}]).nominal,'£0.01'));
