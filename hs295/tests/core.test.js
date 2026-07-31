@@ -40,3 +40,41 @@ test('session import migrates legacy version-1 person syntax',()=>{
   assert.equal(imported.people[0].fullName,"Anne-Marie O'Neill");
   assert.equal(imported.people[0].postcode,'SW1A 1AA');
 });
+
+test('canonical totals use exact deterministic half-up rounding',()=>{
+  assert.equal(C.canonicalTotal('1.005','100','perShare'),'101');
+  assert.equal(C.canonicalTotal('0.0049','100','perShare'),'0');
+  assert.equal(C.canonicalTotal('00042','10','total'),'42');
+  assert.equal(C.canonicalTotal('1.2','bad','perShare'),null);
+});
+
+test('shared transfer normalisation supports total and per-share entry modes',()=>{
+  const normalized=C.normalizeTransfer({...transfer,numberShares:'3',wholeAcquisitionCostMode:'perShare',wholeAcquisitionCostEntry:'10.50',transferValueMode:'perShare',transferValueEntry:'40.50'});
+  assert.equal(normalized.wholeAcquisitionCost,'32');
+  assert.equal(normalized.transferValue,'122');
+  assert.equal(C.gain(normalized),90);
+  assert.deepEqual(C.transferErrors(normalized,people,company),[]);
+});
+
+test('session round trip retains batch entry modes and canonical PDF totals',()=>{
+  const normalized=C.normalizeTransfer({...transfer,wholeAcquisitionCostMode:'perShare',wholeAcquisitionCostEntry:'2.50',transferValueMode:'total',transferValueEntry:'100000'});
+  const imported=C.importSessionText(JSON.stringify(C.exportSession({company,people,transfers:[normalized]}))).transfers[0];
+  assert.equal(imported.wholeAcquisitionCostMode,'perShare');
+  assert.equal(imported.wholeAcquisitionCostEntry,'2.50');
+  assert.equal(imported.wholeAcquisitionCost,'25000');
+});
+
+test('share flow totals are exact, ordered by people and do not mutate inputs',()=>{
+  const inputs=[transfer,{...transfer,id:'t2',transferorPersonId:'b',transfereePersonId:'a',numberShares:'2500'},{...transfer,id:'t3',numberShares:'10000'}],snapshot=structuredClone(inputs);
+  assert.deepEqual(C.shareFlowTotals(people,inputs),[
+    {personId:'a',transferred:'20000',received:'2500'},
+    {personId:'b',transferred:'2500',received:'20000'}
+  ]);
+  assert.deepEqual(inputs,snapshot);
+});
+
+test('share flow totals include people with no transfers and fail closed on malformed references',()=>{
+  assert.deepEqual(C.shareFlowTotals(people,[]).map(x=>[x.transferred,x.received]),[['0','0'],['0','0']]);
+  assert.throws(()=>C.shareFlowTotals(people,[{...transfer,numberShares:'1.5'}]),/invalid share count/);
+  assert.throws(()=>C.shareFlowTotals(people,[{...transfer,transfereePersonId:'missing'}]),/unknown person/);
+});

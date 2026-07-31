@@ -4,3 +4,6 @@
 
 .invalid-field{background:#f8d7da;border:2px solid #b10e1e}.field-error{display:block;color:#8a0b16;font-weight:bold;margin-top:.2rem}
 .header-link{color:white;font-weight:bold;text-underline-offset:.2em}.header-link:visited{color:white}
+.batch-transfer-region{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(300px,380px);gap:1rem;overflow-x:auto;overscroll-behavior-inline:contain;padding:.5rem;scroll-snap-type:x proximity;border:1px solid #ccd5da;background:#f4f6f7}.transfer-column{min-width:0;scroll-snap-align:start;background:white;border:1px solid #71818b;border-radius:4px;padding:1rem}.transfer-column legend{font-size:1.15rem;font-weight:bold;padding:0 .3rem}.transfer-column .field{margin:.65rem 0}.copy-all{padding:.35rem;font-size:.85rem;justify-self:start}.batch-column-error:focus{outline:4px solid var(--focus)}
+@media(max-width:600px){.batch-transfer-region{grid-auto-columns:calc(100vw - 4rem)}.transfer-column{padding:.7rem}}
+.share-flow-review{margin-bottom:1.5rem;overflow-x:auto}.share-flow-review table{width:100%;border-collapse:collapse;min-width:32rem}.share-flow-review caption{text-align:left;padding:.5rem 0}.share-flow-review th,.share-flow-review td{padding:.65rem;border:1px solid #ccd5da;text-align:left}.share-flow-review thead{background:#e8f1f5}
