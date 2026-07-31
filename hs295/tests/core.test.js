@@ -20,10 +20,10 @@ test('reorganisation details are always optional',()=>assert.doesNotMatch(C.tran
 
 test('session import normalises missing optional reorganisation text',()=>{const x=C.exportSession({company,people,transfers:[{...transfer,reorganisationStatus:'details',reorganisationDetails:null}]});const imported=C.importSessionText(JSON.stringify(x)).transfers[0];assert.equal(imported.reorganisationDetails,'');assert.equal(imported.reorganisationStatus,'none')})
 
-test('names contain letters and spaces only',()=>{
-  assert.equal(C.validName('Alex Example'),true);
-  assert.equal(C.validName('Alex7 Example'),false);
-  assert.match(C.personErrors({...people[0],fullName:'Alex7 Example'}).join(),/letters and spaces only/);
+test('names accept letters, single spaces and correctly placed hyphens',()=>{
+  for(const name of ['Alex Example','Anne-Marie Example','Jean-Luc Picard','Mary-Jane Smith-Jones'])assert.equal(C.validName(name),true,name);
+  for(const name of ['Alex7 Example','-Alex Example','Alex- Example','Alex -Example','Alex--Example','Alex Example-','Alex  Example'])assert.equal(C.validName(name),false,name);
+  assert.match(C.personErrors({...people[0],fullName:'Alex--Example'}).join(),/letters, single spaces and correctly placed hyphens only/);
 });
 
 test('postcode requires the stated uppercase format and space',()=>{
