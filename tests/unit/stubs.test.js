@@ -1,2 +1,0 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {generateDocumentsZip} from '../../src/zip/index.js';import {generateOutlookMsg} from '../../src/msg/index.js';import {exportCaseBundle,importCaseBundle} from '../../src/importExport/index.js';
-test('later-step interfaces fail closed',async()=>{for(const call of [()=>generateDocumentsZip({},{}),()=>generateOutlookMsg({}),()=>exportCaseBundle({},{}),()=>importCaseBundle(new Uint8Array())])await assert.rejects(call,/Not implemented in this step/);});

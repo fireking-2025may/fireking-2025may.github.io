@@ -1,0 +1,17 @@
+import {parseDecimal} from '../app/decimal.js';
+const required=(errors,path,value,label)=>{if(!value.trim())errors[path]=`${label} is required.`;};
+const decimal=(errors,path,value,label)=>{required(errors,path,value,label);if(value)try{parseDecimal(value);}catch(error){errors[path]=/** @type {Error} */(error).message;}};
+const positiveShares=(errors,path,value)=>{decimal(errors,path,value,'Number of shares');if(value&&!errors[path]&&parseDecimal(value).isZero())errors[path]='Number of shares must be greater than zero.';};
+const company=(errors,p,c,label)=>{required(errors,`${p}.name`,c.name,`${label} name`);required(errors,`${p}.companyNumber`,c.companyNumber,`${label} number`);required(errors,`${p}.registeredOffice`,c.registeredOffice,`${label} registered office`);required(errors,`${p}.incorporationDate`,c.incorporationDate,`${label} incorporation date`);required(errors,`${p}.jurisdiction`,c.jurisdiction,`${label} jurisdiction`);};
+const capital=(errors,p,rows,mustPaid)=>rows.forEach((r,i)=>{const q=`${p}.${i}`;required(errors,`${q}.shareClass`,r.shareClass,'Share class');positiveShares(errors,`${q}.numberOfShares`,r.numberOfShares);decimal(errors,`${q}.nominalValuePerShare`,r.nominalValuePerShare,'Nominal value per share');required(errors,`${q}.shareRights`,r.shareRights,'Share rights');required(errors,`${q}.paymentStatus`,r.paymentStatus,'Payment status');if(mustPaid&&r.paymentStatus!=='Fully Paid')errors[`${q}.paymentStatus`]='This capital must be Fully Paid because the fixed letter says so.';});
+const scheduleLines=(errors,p,lines)=>lines.forEach((line,i)=>{const q=`${p}.${i}`;positiveShares(errors,`${q}.numberOfShares`,line.numberOfShares);required(errors,`${q}.shareClass`,line.shareClass,'Share class');decimal(errors,`${q}.nominalValuePerShare`,line.nominalValuePerShare,'Nominal value per share');});
+export function validateStep(data,step){const e={};const f=data.form;
+ if(step===0){required(e,'form.ourReference',f.ourReference,'Our reference');required(e,'form.transactionDate',f.transactionDate,'Transaction date');required(e,'form.adviserName',f.adviserName,'Adviser name');}
+ if(step===1)company(e,'form.acquiringCompany',f.acquiringCompany,'Acquiring company');
+ if(step===2)company(e,'form.targetCompany',f.targetCompany,'Target company');
+ if(step===3){capital(e,'form.acquiringPreTransactionCapital',f.acquiringPreTransactionCapital,false);capital(e,'form.targetPreTransactionCapital',f.targetPreTransactionCapital,true);capital(e,'form.acquiringPostTransactionCapital',f.acquiringPostTransactionCapital,true);}
+ if(step===4)f.commercialReasons.forEach((r,i)=>{required(e,`form.commercialReasons.${i}.heading`,r.heading,'Heading');required(e,`form.commercialReasons.${i}.body`,r.body,'Explanation');});
+ if(step===5){required(e,'form.agreement.scheduleReference',f.agreement.scheduleReference,'Agreement schedule reference');required(e,'form.agreement.saleShareColumnNumber',f.agreement.saleShareColumnNumber,'Sale shares column');required(e,'form.agreement.considerationShareColumnNumber',f.agreement.considerationShareColumnNumber,'Consideration shares column');}
+ if(step===6)f.schedule.forEach((s,i)=>{const p=`form.schedule.${i}`;required(e,`${p}.sellerName`,s.sellerName,'Seller name');scheduleLines(e,`${p}.saleShares`,s.saleShares);scheduleLines(e,`${p}.considerationShares`,s.considerationShares);});
+ return e;}
+export function validateCase(data){return Object.assign({},...Array.from({length:7},(_,i)=>validateStep(data,i)));}
