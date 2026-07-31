@@ -1,35 +1,425 @@
-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.HS295Core=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
-'use strict';
-const SCHEMA='uk-tax-practice.hs295-session',VERSION=1,TEMPLATE='2026';
-const LIMITS={name:52,address:58,country:36,identifier:10,shareClass:32,reorganisation:420,retained:350,company:70,moneyDigits:8,transferValueDigits:7,gainDigits:7};
-const own=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).every(k=>keys.includes(k));
-const trim=v=>typeof v==='string'?v.trim():'';
-function uuid(){return globalThis.crypto&&crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&3|8).toString(16)});}
-function normalizeUTR(v){const s=trim(v);return s||null}
-function normalizeNINO(v){const s=trim(v).toUpperCase().replace(/\s/g,'');return /^[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]$/.test(s)?s:null}
-function normalizePostcode(v){const s=trim(v);return /^([A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2})$/.test(s)?s:null}
-function normalizeLegacyPostcode(v){const s=trim(v).toUpperCase().replace(/\s/g,'');return /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(s)?s.slice(0,-3)+' '+s.slice(-3):null}
-function validName(v){return /^[A-Za-z]+(?:-[A-Za-z]+)*(?: [A-Za-z]+(?:-[A-Za-z]+)*)*$/.test(trim(v))}
-function validDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s||''))return false;const d=new Date(s+'T00:00:00Z');return !isNaN(d)&&d.toISOString().slice(0,10)===s}
-const whole=v=>/^\d+$/.test(String(v))&&BigInt(String(v))<=BigInt(Number.MAX_SAFE_INTEGER);
-const decimalParts=value=>{const match=String(value??'').trim().match(/^(\d+)(?:\.(\d{1,6}))?$/);if(!match)return null;const scale=(match[2]||'').length;return {integer:BigInt(match[1]+(match[2]||'')),scale};};
-/** Calculate a whole-pound canonical total without binary floating point. Per-share values are rounded half-up once after multiplication. */
-function canonicalTotal(value,numberShares,mode='total'){if(mode==='total')return whole(value)?String(BigInt(String(value))):null;if(mode!=='perShare'||!whole(numberShares))return null;const parsed=decimalParts(value);if(!parsed)return null;const divisor=10n**BigInt(parsed.scale),raw=parsed.integer*BigInt(String(numberShares));return String((raw+divisor/2n)/divisor)}
-function transferDefaults(){return {id:uuid(),transferorPersonId:'',transfereePersonId:'',numberShares:'',nominalValue:'1',shareClass:'Ordinary',disposalDate:'',acquisitionDate:'',wholeAcquisitionCost:'',transferValue:'',reorganisationStatus:'none',reorganisationDetails:'',partDisposal:false,apportionedAcquisitionCost:'',retainedDetails:'',retainedValue:'',wholeAcquisitionCostMode:'total',wholeAcquisitionCostEntry:'',transferValueMode:'total',transferValueEntry:''}}
-/** Shared normalisation used by both the single and batch transfer editors. */
-function normalizeTransfer(value){const source={...transferDefaults(),...value},out={...source};for(const key of ['transferorPersonId','transfereePersonId','numberShares','nominalValue','shareClass','disposalDate','acquisitionDate','wholeAcquisitionCost','transferValue','reorganisationDetails','apportionedAcquisitionCost','retainedDetails','retainedValue'])out[key]=trim(source[key]);for(const key of ['numberShares','apportionedAcquisitionCost','retainedValue'])if(whole(out[key]))out[key]=String(BigInt(out[key]));for(const key of ['wholeAcquisitionCost','transferValue']){const mode=source[key+'Mode']==='perShare'?'perShare':'total',entry=trim(source[key+'Entry'])||trim(source[key]);out[key+'Mode']=mode;out[key+'Entry']=entry;out[key]=canonicalTotal(entry,out.numberShares,mode)??entry}out.partDisposal=!!source.partDisposal;out.reorganisationStatus=out.reorganisationDetails?'details':'none';if(!out.partDisposal){out.apportionedAcquisitionCost='';out.retainedDetails='';out.retainedValue=''}return out}
-function gain(t){const a=t.partDisposal?t.apportionedAcquisitionCost:t.wholeAcquisitionCost;return whole(t.transferValue)&&whole(a)?Number(BigInt(t.transferValue)-BigInt(a)):null}
-/** Aggregate the complete transfer collection by person without mutating either input. */
-function shareFlowTotals(people,transfers){const totals=new Map(people.map(person=>[person.id,{personId:person.id,transferred:0n,received:0n}]));if(totals.size!==people.length)throw Error('Duplicate person identifiers.');for(const transfer of transfers){if(!whole(transfer.numberShares))throw Error('A transfer has an invalid share count.');const from=totals.get(transfer.transferorPersonId),to=totals.get(transfer.transfereePersonId);if(!from||!to)throw Error('A transfer references an unknown person.');const shares=BigInt(transfer.numberShares);from.transferred+=shares;to.received+=shares}return people.map(person=>{const total=totals.get(person.id);return {personId:total.personId,transferred:String(total.transferred),received:String(total.received)}})}
-function personErrors(p,options={}){const e=[];for(const [k,l] of [['fullName','Full name'],['address1','Address line 1'],['address2','Address line 2'],['country','Country'],['postcode','Postcode']])if(!trim(p[k]))e.push(l+' is required.');
-for(const [k,n] of [['fullName','name'],['address1','address'],['address2','address'],['country','country']])if(trim(p[k]).length>LIMITS[n])e.push(k+' is too long for the PDF.');
-if(!options.allowLegacyName&&trim(p.fullName)&&!validName(p.fullName))e.push('Full name must contain letters, single spaces and correctly placed hyphens only.');if(!(options.allowLegacyPostcode?normalizeLegacyPostcode(p.postcode):normalizePostcode(p.postcode)))e.push('Postcode required format: ^([A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2})$ (uppercase with one space).');if(p.identifierType==='NINO'){if(!normalizeNINO(p.identifierValue))e.push('Enter a syntactically valid National Insurance number.')}else if(p.identifierType!=='UTR')e.push('Select UTR or National Insurance number.');return e}
-function transferErrors(t,people,company){const e=[];if(!people.some(p=>p.id===t.transferorPersonId))e.push('Select a transferor.');if(!people.some(p=>p.id===t.transfereePersonId))e.push('Select a transferee.');if(t.transferorPersonId&&t.transferorPersonId===t.transfereePersonId)e.push('Transferor and transferee must be different people.');if(!whole(t.numberShares)||BigInt(t.numberShares)<=0n)e.push('Number of shares must be a positive whole number.');if(!decimalParts(t.nominalValue)||decimalParts(t.nominalValue).integer<=0n)e.push('Nominal value must be positive.');if(!trim(t.shareClass))e.push('Share class is required.');if(trim(t.shareClass).length>LIMITS.shareClass)e.push('Share class is too long.');if(!validDate(t.disposalDate))e.push('Enter a valid disposal date.');if(!validDate(t.acquisitionDate))e.push('Enter a valid acquisition date.');if(validDate(t.disposalDate)&&validDate(t.acquisitionDate)&&t.acquisitionDate>t.disposalDate)e.push('Acquisition date cannot be later than disposal date.');if(!whole(t.wholeAcquisitionCost))e.push('Whole acquisition cost must be non-negative whole pounds.');if(!whole(t.transferValue)||BigInt(t.transferValue)<=0n)e.push('Transfer value must be positive whole pounds.');if(trim(t.reorganisationDetails).length>LIMITS.reorganisation)e.push('Reorganisation details are too long.');if(t.partDisposal){if(!whole(t.apportionedAcquisitionCost))e.push('Apportioned acquisition cost must be non-negative whole pounds.');else if(whole(t.wholeAcquisitionCost)&&BigInt(t.apportionedAcquisitionCost)>BigInt(t.wholeAcquisitionCost))e.push('Apportioned cost cannot exceed whole acquisition cost.');if(!trim(t.retainedDetails))e.push('Enter details of the part retained.');if(!whole(t.retainedValue))e.push('Retained value must be non-negative whole pounds.');if(trim(t.retainedDetails).length>LIMITS.retained)e.push('Part-retained details are too long.');}const g=gain(t);if(g!==null&&g<=0)e.push('Export is unavailable because the transfer value must exceed the relevant acquisition cost for there to be a positive gain to hold over under this workflow.');for(const [v,n,label] of [[t.wholeAcquisitionCost,LIMITS.moneyDigits,'Whole acquisition cost'],[t.transferValue,LIMITS.transferValueDigits,'Transfer value'],[g,LIMITS.gainDigits,'Held-over gain']])if(whole(v)&&String(BigInt(String(v))).length>n)e.push(label+' must be no more than '+n+' digits.');if(company&&assetDescription(t,company).length>180)e.push('Asset description is too long for two PDF lines at 7 points.');return e}
-function assetDescription(t,c){const n=BigInt(t.numberShares).toLocaleString('en-GB');const nominal=String(t.nominalValue).replace(/(?:\.0+|(\.\d+?)0+)$/,'$1');const number=trim(c.companyNumber);return `${n} £${nominal} ${trim(t.shareClass)} shares in ${trim(c.legalName)}${number?` (company number ${number})`:''}`}
-function sanitizeFilename(s){return trim(s).replace(/[<>:"/\\|?*\x00-\x1F]/g,'-').replace(/[. ]+$/,'').replace(/\s+/g,' ')||'Untitled'}
-function pdfFilenames(transfers,people){const seen={};return transfers.map(t=>{const a=people.find(p=>p.id===t.transferorPersonId)?.fullName||'Unknown';const b=people.find(p=>p.id===t.transfereePersonId)?.fullName||'Unknown';const d=validDate(t.disposalDate)?t.disposalDate.split('-').reverse().join('-'):'Unknown date';const base=sanitizeFilename(`${a} to ${b} - ${d}`);seen[base]=(seen[base]||0)+1;return base+(seen[base]>1?` (${seen[base]})`:'')+'.pdf'})}
-function taxpayerReference(transfers,people){const ids=transfers.map(t=>{const p=people.find(x=>x.id===t.transferorPersonId);return p?(p.identifierType==='UTR'?normalizeUTR(p.identifierValue):normalizeNINO(p.identifierValue)):null});return ids.length&&ids.every(x=>x&&x===ids[0])?ids[0]:'Multiple Taxpayers'}
-function exportSession(state){return {schema:SCHEMA,schemaVersion:VERSION,templateVersion:TEMPLATE,exportedAt:new Date().toISOString(),company:state.company,people:state.people,transfers:state.transfers}}
-function importSessionText(text){let x;try{x=JSON.parse(text)}catch{throw Error('Invalid JSON.')}if(!own(x,['schema','schemaVersion','templateVersion','exportedAt','company','people','transfers'])||x.schema!==SCHEMA||x.schemaVersion!==VERSION||x.templateVersion!==TEMPLATE)throw Error('Unsupported or malformed session schema.');if(!own(x.company,['legalName','companyNumber'])||!Array.isArray(x.people)||!Array.isArray(x.transfers))throw Error('Malformed session data.');for(const p of x.people){if(!own(p,['id','fullName','address1','address2','country','postcode','identifierType','identifierValue'])||personErrors(p,{allowLegacyName:true,allowLegacyPostcode:true}).length)throw Error('A person record is invalid.');p.postcode=normalizeLegacyPostcode(p.postcode)}const personIds=new Set(x.people.map(p=>p.id));if(personIds.size!==x.people.length)throw Error('Duplicate person identifiers.');for(const t of x.transfers){if(!own(t,['id','transferorPersonId','transfereePersonId','numberShares','nominalValue','shareClass','disposalDate','acquisitionDate','wholeAcquisitionCost','transferValue','reorganisationStatus','reorganisationDetails','partDisposal','apportionedAcquisitionCost','retainedDetails','retainedValue','wholeAcquisitionCostMode','wholeAcquisitionCostEntry','transferValueMode','transferValueEntry']))throw Error('A transfer record is malformed.');Object.assign(t,normalizeTransfer(t))}return {company:x.company,people:x.people,transfers:x.transfers}}
-return {SCHEMA,VERSION,TEMPLATE,LIMITS,uuid,canonicalTotal,transferDefaults,normalizeTransfer,shareFlowTotals,normalizeUTR,normalizeNINO,normalizePostcode,normalizeLegacyPostcode,validName,validDate,whole,gain,personErrors,transferErrors,assetDescription,sanitizeFilename,pdfFilenames,taxpayerReference,exportSession,importSessionText};
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  root.HS295Core = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+  const SCHEMA = "uk-tax-practice.hs295-session",
+    VERSION = 1,
+    TEMPLATE = "2026";
+  const LIMITS = {
+    name: 52,
+    address: 58,
+    country: 36,
+    identifier: 10,
+    shareClass: 32,
+    reorganisation: 420,
+    company: 70,
+    moneyDigits: 8,
+    transferValueDigits: 7,
+    gainDigits: 7,
+  };
+  const own = (o, keys) =>
+    o &&
+    typeof o === "object" &&
+    !Array.isArray(o) &&
+    Object.keys(o).every((k) => keys.includes(k));
+  const trim = (v) => (typeof v === "string" ? v.trim() : "");
+  function uuid() {
+    return globalThis.crypto && crypto.randomUUID
+      ? crypto.randomUUID()
+      : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          return (c === "x" ? r : (r & 3) | 8).toString(16);
+        });
+  }
+  function normalizeUTR(v) {
+    const s = trim(v);
+    return s || null;
+  }
+  function normalizeNINO(v) {
+    const s = trim(v).toUpperCase().replace(/\s/g, "");
+    return /^[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]$/.test(s) ? s : null;
+  }
+  function normalizePostcode(v) {
+    const s = trim(v);
+    return /^([A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2})$/.test(s) ? s : null;
+  }
+  function normalizeLegacyPostcode(v) {
+    const s = trim(v).toUpperCase().replace(/\s/g, "");
+    return /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/.test(s)
+      ? s.slice(0, -3) + " " + s.slice(-3)
+      : null;
+  }
+  function validName(v) {
+    return /^[A-Za-z]+(?:-[A-Za-z]+)*(?: [A-Za-z]+(?:-[A-Za-z]+)*)*$/.test(
+      trim(v),
+    );
+  }
+  function validDate(s) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s || "")) return false;
+    const d = new Date(s + "T00:00:00Z");
+    return !isNaN(d) && d.toISOString().slice(0, 10) === s;
+  }
+  const whole = (v) =>
+    /^\d+$/.test(String(v)) &&
+    BigInt(String(v)) <= BigInt(Number.MAX_SAFE_INTEGER);
+  const decimalParts = (value) => {
+    const match = String(value ?? "")
+      .trim()
+      .match(/^(\d+)(?:\.(\d{1,6}))?$/);
+    if (!match) return null;
+    const scale = (match[2] || "").length;
+    return { integer: BigInt(match[1] + (match[2] || "")), scale };
+  };
+  /** Calculate a whole-pound canonical total without binary floating point. Per-share values are rounded half-up once after multiplication. */
+  function canonicalTotal(value, numberShares, mode = "total") {
+    if (mode === "total")
+      return whole(value) ? String(BigInt(String(value))) : null;
+    if (mode !== "perShare" || !whole(numberShares)) return null;
+    const parsed = decimalParts(value);
+    if (!parsed) return null;
+    const divisor = 10n ** BigInt(parsed.scale),
+      raw = parsed.integer * BigInt(String(numberShares));
+    return String((raw + divisor / 2n) / divisor);
+  }
+  function transferDefaults() {
+    return {
+      id: uuid(),
+      transferorPersonId: "",
+      transfereePersonId: "",
+      numberShares: "",
+      nominalValue: "1",
+      shareClass: "Ordinary",
+      disposalDate: "",
+      acquisitionDate: "",
+      wholeAcquisitionCost: "",
+      transferValue: "",
+      reorganisationStatus: "none",
+      reorganisationDetails: "",
+      wholeAcquisitionCostMode: "total",
+      wholeAcquisitionCostEntry: "",
+      transferValueMode: "total",
+      transferValueEntry: "",
+    };
+  }
+  /** Shared normalisation used by both the single and batch transfer editors. */
+  function normalizeTransfer(value) {
+    const source = { ...transferDefaults(), ...value },
+      out = { ...source };
+    for (const key of [
+      "transferorPersonId",
+      "transfereePersonId",
+      "numberShares",
+      "nominalValue",
+      "shareClass",
+      "disposalDate",
+      "acquisitionDate",
+      "wholeAcquisitionCost",
+      "transferValue",
+      "reorganisationDetails",
+    ])
+      out[key] = trim(source[key]);
+    for (const key of ["numberShares"])
+      if (whole(out[key])) out[key] = String(BigInt(out[key]));
+    for (const key of ["wholeAcquisitionCost", "transferValue"]) {
+      const mode = source[key + "Mode"] === "perShare" ? "perShare" : "total",
+        entry = trim(source[key + "Entry"]) || trim(source[key]);
+      out[key + "Mode"] = mode;
+      out[key + "Entry"] = entry;
+      out[key] = canonicalTotal(entry, out.numberShares, mode) ?? entry;
+    }
+    delete out.partDisposal;
+    delete out.apportionedAcquisitionCost;
+    delete out.retainedDetails;
+    delete out.retainedValue;
+    out.reorganisationStatus = out.reorganisationDetails ? "details" : "none";
+    return out;
+  }
+  function gain(t) {
+    return whole(t.transferValue) && whole(t.wholeAcquisitionCost)
+      ? Number(BigInt(t.transferValue) - BigInt(t.wholeAcquisitionCost))
+      : null;
+  }
+
+  /** Aggregate the complete transfer collection by person without mutating either input. */
+  function shareFlowTotals(people, transfers) {
+    const totals = new Map(
+      people.map((person) => [
+        person.id,
+        { personId: person.id, transferred: 0n, received: 0n },
+      ]),
+    );
+    if (totals.size !== people.length)
+      throw Error("Duplicate person identifiers.");
+    for (const transfer of transfers) {
+      if (!whole(transfer.numberShares))
+        throw Error("A transfer has an invalid share count.");
+      const from = totals.get(transfer.transferorPersonId),
+        to = totals.get(transfer.transfereePersonId);
+      if (!from || !to) throw Error("A transfer references an unknown person.");
+      const shares = BigInt(transfer.numberShares);
+      from.transferred += shares;
+      to.received += shares;
+    }
+    return people.map((person) => {
+      const total = totals.get(person.id);
+      return {
+        personId: total.personId,
+        transferred: String(total.transferred),
+        received: String(total.received),
+      };
+    });
+  }
+  function personErrors(p, options = {}) {
+    const e = [];
+    for (const [k, l] of [
+      ["fullName", "Full name"],
+      ["address1", "Address line 1"],
+      ["address2", "Address line 2"],
+      ["country", "Country"],
+      ["postcode", "Postcode"],
+    ])
+      if (!trim(p[k])) e.push(l + " is required.");
+    for (const [k, n] of [
+      ["fullName", "name"],
+      ["address1", "address"],
+      ["address2", "address"],
+      ["country", "country"],
+    ])
+      if (trim(p[k]).length > LIMITS[n])
+        e.push(k + " is too long for the PDF.");
+    if (!options.allowLegacyName && trim(p.fullName) && !validName(p.fullName))
+      e.push(
+        "Full name must contain letters, single spaces and correctly placed hyphens only.",
+      );
+    if (
+      !(options.allowLegacyPostcode
+        ? normalizeLegacyPostcode(p.postcode)
+        : normalizePostcode(p.postcode))
+    )
+      e.push(
+        "Postcode required format: ^([A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2})$ (uppercase with one space).",
+      );
+    if (p.identifierType === "NINO") {
+      if (!normalizeNINO(p.identifierValue))
+        e.push("Enter a syntactically valid National Insurance number.");
+    } else if (p.identifierType !== "UTR")
+      e.push("Select UTR or National Insurance number.");
+    return e;
+  }
+  function transferErrors(t, people, company) {
+    const e = [];
+    if (!people.some((p) => p.id === t.transferorPersonId))
+      e.push("Select a transferor.");
+    if (!people.some((p) => p.id === t.transfereePersonId))
+      e.push("Select a transferee.");
+    if (t.transferorPersonId && t.transferorPersonId === t.transfereePersonId)
+      e.push("Transferor and transferee must be different people.");
+    if (!whole(t.numberShares) || BigInt(t.numberShares) <= 0n)
+      e.push("Number of shares must be a positive whole number.");
+    if (
+      !decimalParts(t.nominalValue) ||
+      decimalParts(t.nominalValue).integer <= 0n
+    )
+      e.push("Nominal value must be positive.");
+    if (!trim(t.shareClass)) e.push("Share class is required.");
+    if (trim(t.shareClass).length > LIMITS.shareClass)
+      e.push("Share class is too long.");
+    if (!validDate(t.disposalDate)) e.push("Enter a valid disposal date.");
+    if (!validDate(t.acquisitionDate))
+      e.push("Enter a valid acquisition date.");
+    if (
+      validDate(t.disposalDate) &&
+      validDate(t.acquisitionDate) &&
+      t.acquisitionDate > t.disposalDate
+    )
+      e.push("Acquisition date cannot be later than disposal date.");
+    if (!whole(t.wholeAcquisitionCost))
+      e.push("Whole acquisition cost must be non-negative whole pounds.");
+    if (!whole(t.transferValue) || BigInt(t.transferValue) <= 0n)
+      e.push("Transfer value must be positive whole pounds.");
+    if (trim(t.reorganisationDetails).length > LIMITS.reorganisation)
+      e.push("Reorganisation details are too long.");
+    const g = gain(t);
+    if (g !== null && g <= 0)
+      e.push(
+        "Export is unavailable because the transfer value must exceed the relevant acquisition cost for there to be a positive gain to hold over under this workflow.",
+      );
+    for (const [v, n, label] of [
+      [t.wholeAcquisitionCost, LIMITS.moneyDigits, "Whole acquisition cost"],
+      [t.transferValue, LIMITS.transferValueDigits, "Transfer value"],
+      [g, LIMITS.gainDigits, "Held-over gain"],
+    ])
+      if (whole(v) && String(BigInt(String(v))).length > n)
+        e.push(label + " must be no more than " + n + " digits.");
+    if (company && assetDescription(t, company).length > 180)
+      e.push("Asset description is too long for two PDF lines at 7 points.");
+    return e;
+  }
+  function assetDescription(t, c) {
+    const n = BigInt(t.numberShares).toLocaleString("en-GB");
+    const nominal = String(t.nominalValue).replace(
+      /(?:\.0+|(\.\d+?)0+)$/,
+      "$1",
+    );
+    const number = trim(c.companyNumber);
+    return `${n} £${nominal} ${trim(t.shareClass)} shares in ${trim(c.legalName)}${number ? ` (company number ${number})` : ""}`;
+  }
+  function sanitizeFilename(s) {
+    return (
+      trim(s)
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+        .replace(/[. ]+$/, "")
+        .replace(/\s+/g, " ") || "Untitled"
+    );
+  }
+  function pdfFilenames(transfers, people) {
+    const seen = {};
+    return transfers.map((t) => {
+      const a =
+        people.find((p) => p.id === t.transferorPersonId)?.fullName ||
+        "Unknown";
+      const b =
+        people.find((p) => p.id === t.transfereePersonId)?.fullName ||
+        "Unknown";
+      const d = validDate(t.disposalDate)
+        ? t.disposalDate.split("-").reverse().join("-")
+        : "Unknown date";
+      const base = sanitizeFilename(`${a} to ${b} - ${d}`);
+      seen[base] = (seen[base] || 0) + 1;
+      return base + (seen[base] > 1 ? ` (${seen[base]})` : "") + ".pdf";
+    });
+  }
+  function taxpayerReference(transfers, people) {
+    const ids = transfers.map((t) => {
+      const p = people.find((x) => x.id === t.transferorPersonId);
+      return p
+        ? p.identifierType === "UTR"
+          ? normalizeUTR(p.identifierValue)
+          : normalizeNINO(p.identifierValue)
+        : null;
+    });
+    return ids.length && ids.every((x) => x && x === ids[0])
+      ? ids[0]
+      : "Multiple Taxpayers";
+  }
+  function exportSession(state) {
+    return {
+      schema: SCHEMA,
+      schemaVersion: VERSION,
+      templateVersion: TEMPLATE,
+      exportedAt: new Date().toISOString(),
+      company: state.company,
+      people: state.people,
+      transfers: state.transfers,
+    };
+  }
+  function importSessionText(text) {
+    let x;
+    try {
+      x = JSON.parse(text);
+    } catch {
+      throw Error("Invalid JSON.");
+    }
+    if (
+      !own(x, [
+        "schema",
+        "schemaVersion",
+        "templateVersion",
+        "exportedAt",
+        "company",
+        "people",
+        "transfers",
+      ]) ||
+      x.schema !== SCHEMA ||
+      x.schemaVersion !== VERSION ||
+      x.templateVersion !== TEMPLATE
+    )
+      throw Error("Unsupported or malformed session schema.");
+    if (
+      !own(x.company, ["legalName", "companyNumber"]) ||
+      !Array.isArray(x.people) ||
+      !Array.isArray(x.transfers)
+    )
+      throw Error("Malformed session data.");
+    for (const p of x.people) {
+      if (
+        !own(p, [
+          "id",
+          "fullName",
+          "address1",
+          "address2",
+          "country",
+          "postcode",
+          "identifierType",
+          "identifierValue",
+          "coupleId",
+        ]) ||
+        personErrors(p, { allowLegacyName: true, allowLegacyPostcode: true })
+          .length
+      )
+        throw Error("A person record is invalid.");
+      p.postcode = normalizeLegacyPostcode(p.postcode);
+    }
+    const personIds = new Set(x.people.map((p) => p.id));
+    if (personIds.size !== x.people.length)
+      throw Error("Duplicate person identifiers.");
+    for (const t of x.transfers) {
+      if (
+        !own(t, [
+          "id",
+          "transferorPersonId",
+          "transfereePersonId",
+          "numberShares",
+          "nominalValue",
+          "shareClass",
+          "disposalDate",
+          "acquisitionDate",
+          "wholeAcquisitionCost",
+          "transferValue",
+          "reorganisationStatus",
+          "reorganisationDetails",
+          "partDisposal",
+          "apportionedAcquisitionCost",
+          "retainedDetails",
+          "retainedValue",
+          "wholeAcquisitionCostMode",
+          "wholeAcquisitionCostEntry",
+          "transferValueMode",
+          "transferValueEntry",
+        ])
+      )
+        throw Error("A transfer record is malformed.");
+      Object.assign(t, normalizeTransfer(t));
+    }
+    return { company: x.company, people: x.people, transfers: x.transfers };
+  }
+  return {
+    SCHEMA,
+    VERSION,
+    TEMPLATE,
+    LIMITS,
+    uuid,
+    canonicalTotal,
+    transferDefaults,
+    normalizeTransfer,
+    shareFlowTotals,
+    normalizeUTR,
+    normalizeNINO,
+    normalizePostcode,
+    normalizeLegacyPostcode,
+    validName,
+    validDate,
+    whole,
+    gain,
+    personErrors,
+    transferErrors,
+    assetDescription,
+    sanitizeFilename,
+    pdfFilenames,
+    taxpayerReference,
+    exportSession,
+    importSessionText,
+  };
 });
