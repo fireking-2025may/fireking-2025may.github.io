@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "description": "Offline UBTA S77 letter case-entry application",
-  "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
@@ -13,7 +12,8 @@
     "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
-    "decimal.js": "10.6.0"
+    "decimal.js": "10.6.0",
+    "mathjs": "9.3.0"
   },
   "devDependencies": {
     "@eslint/js": "9.32.0",

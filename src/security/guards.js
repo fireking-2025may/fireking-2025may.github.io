@@ -3,5 +3,6 @@ export function createProhibitedApiDoubles() { const doubles={}; for(const name 
 export function installRuntimeGuards(target=globalThis) {
   const fail=name=>()=>{throw new Error(`Prohibited runtime API accessed: ${name}`);};
   for(const name of ['fetch','XMLHttpRequest','WebSocket','EventSource','RTCPeerConnection']) if(name in target) Object.defineProperty(target,name,{value:fail(name),configurable:true});
+  for(const name of ['localStorage','sessionStorage','indexedDB','caches']) if(name in target) Object.defineProperty(target,name,{get:fail(name),configurable:true});
   if(target.navigator){for(const name of ['sendBeacon','serviceWorker']) try{Object.defineProperty(target.navigator,name,{get:fail(name),configurable:true});}catch{/* browser may make it non-configurable */}}
 }

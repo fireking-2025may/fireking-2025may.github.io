@@ -4,3 +4,5 @@ function valid(){const c=createBlankCase(),f=c.form;f.ourReference='REF';f.trans
 test('blank model has fixed schema and required repeatable items',()=>{const c=createBlankCase();assert.equal(c.schemaVersion,1);assert.equal(c.form.schedule.length,1);assert.deepEqual(Object.keys(c.enclosures),['A','B','C','D','E','F','G','H','I']);assert.ok(Object.keys(validateCase(c)).length>20);});
 test('complete valid model passes mandatory validation',()=>assert.deepEqual(validateCase(valid()),{}));
 test('fixed Fully Paid statement is blocking',()=>{const c=valid();c.form.targetPreTransactionCapital[0].paymentStatus='Unpaid';assert.match(validateCase(c)['form.targetPreTransactionCapital.0.paymentStatus'],/Fully Paid/);});
+
+test('capital and schedule share counts must be positive',()=>{const c=valid();c.form.acquiringPreTransactionCapital[0].numberOfShares='0';c.form.schedule[0].saleShares[0].numberOfShares='0.00';const errors=validateCase(c);assert.match(errors['form.acquiringPreTransactionCapital.0.numberOfShares'],/greater than zero/);assert.match(errors['form.schedule.0.saleShares.0.numberOfShares'],/greater than zero/);});

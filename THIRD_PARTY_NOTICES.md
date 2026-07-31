@@ -2,6 +2,7 @@
 
 Production dependency versions are pinned in `package-lock.json`.
 
+- **mathjs 9.3.0** — retained for pre-existing repository tools; Apache License 2.0; © Jos de Jong and contributors.
 - **decimal.js 10.6.0** — arbitrary-precision decimal arithmetic; MIT Licence; © Michael Mclaughlin.
 
 Development-only tooling (not included as separately loaded runtime resources):

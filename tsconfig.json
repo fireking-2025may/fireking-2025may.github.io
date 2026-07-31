@@ -5,13 +5,14 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": true,
     "noEmit": true,
     "lib": [
       "ES2022",
       "DOM"
     ],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noImplicitAny": false
   },
   "include": [
     "src/**/*.js"
