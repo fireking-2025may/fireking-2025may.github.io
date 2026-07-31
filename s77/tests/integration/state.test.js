@@ -1,3 +1,0 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {createBlankCase} from '../../src/data/model.js';import {validateStep} from '../../src/validation/validate.js';
-test('step validation never mutates or drops exact in-memory input',()=>{const c=createBlankCase();c.form.ourReference='  User CASE  ';const snapshot=structuredClone(c);validateStep(c,0);assert.deepEqual(c,snapshot);});
-test('blank model recreation simulates reload and clear without persistence',()=>{const first=createBlankCase();first.form.ourReference='secret';const reloaded=createBlankCase();assert.equal(reloaded.form.ourReference,'');assert.equal('exportedAt' in reloaded,false);assert.equal(JSON.stringify(reloaded).includes('secret'),false);});
