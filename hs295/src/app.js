@@ -1083,12 +1083,6 @@ async function zipAll() {
   }
 }
 function exportSession() {
-  if (
-    !confirm(
-      "This unencrypted session file contains personal and tax-reference information. Store and transmit it securely.",
-    )
-  )
-    return;
   download(
     new Blob([JSON.stringify(C.exportSession(state), null, 2)], {
       type: "application/json",
