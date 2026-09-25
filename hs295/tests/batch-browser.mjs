@@ -116,11 +116,15 @@ await page.locator("#batch-transfer-form").evaluate((f) => f.requestSubmit());
 if ((await page.locator("#transfer-list .card").count()) !== 2) {
   throw Error("Valid batch was not saved atomically");
 }
-page.once("dialog", (d) => d.accept());
+const failOnExportDialog = () => {
+  throw Error("Session export must start without a dialog");
+};
+page.on("dialog", failOnExportDialog);
 const [session] = await Promise.all([
   page.waitForEvent("download"),
   page.locator(".export-session").first().click(),
 ]);
+page.off("dialog", failOnExportDialog);
 const sessionPath = path.join("/tmp", "hs295-batch-session.json");
 await session.saveAs(sessionPath);
 await page.reload();
